@@ -1,16 +1,20 @@
 from openai import OpenAI
 import requests
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 # Setup Lunon API
 client = OpenAI(
-    api_key="sk-lunon-bf3f5167-5799-441a-91a1-fcf5475fafa3",
+    api_key=os.getenv("LUNON_API_KEY"),
     base_url="https://api.lunon.com/v1"
 )
 
-# Nasdaq API Key (if applicable)
-nd_key = '_Fvsd5q-FWtsKoGCAKdu'
+# Nasdaq API Key
+nd_key = os.getenv("NASDAQ_API_KEY")
 
 def analyze_image_and_get_ticker(image_url):
+    
     prompt = ("Identify the brand in this image and return only the associated "
               "stock ticker symbol. If it is not a publicly traded company, return 'NULL'.")
 
