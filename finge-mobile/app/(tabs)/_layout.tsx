@@ -1,124 +1,46 @@
-import React from 'react';
-import { StyleSheet, Dimensions } from 'react-native';
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import type { ComponentProps } from 'react';
-import { PortfolioProvider } from './PortfolioContext'; // Adjust the path as needed
+// App.tsx (or app/_layout.tsx in Expo Router)
+import React, { useState } from 'react';
+import { SafeAreaView, View, StyleSheet } from 'react-native';
+import DeckFlashcards from './(context)/';
+import PortfolioScreen from './(context)/PortfolioScreen';
+import InsightsFlashcard from './(context)/InsightsFlashcard';
+import WishListScreen from './(context)/WishListScreen';
+import PlaceholderScreen from './(context)/PlaceholderScreen';
+import BottomNav from './(context)/BottomNav';
 
-const { width } = Dimensions.get('window');
+type TabName = 'home' | 'portfolio' | 'market' | 'wishlist';
 
-// 1) Type for Ionicons name
-type IoniconsName = ComponentProps<typeof Ionicons>['name'];
+export default function App() {
+  const [activeTab, setActiveTab] = useState<TabName>('home');
+  const [showInsights, setShowInsights] = useState<boolean>(false);
 
-// 2) Define route names
-type TabRoute = 'discover' | 'portfolio' | 'trade' | 'camera' | 'profile';
-
-// 3) getTabIcon returns a valid Ionicons name
-const getTabIcon = (routeName: TabRoute, isSelected: boolean): IoniconsName => {
-  const iconMap: Record<TabRoute, IoniconsName> = {
-    discover: isSelected ? 'compass' : 'compass-outline',
-    portfolio: isSelected ? 'pie-chart' : 'pie-chart-outline',
-    trade: isSelected ? 'trending-up' : 'trending-up-outline',
-    camera: isSelected ? 'camera' : 'camera-outline',
-    profile: isSelected ? 'person' : 'person-outline',
+  const renderContent = () => {
+    if (activeTab === 'home') {
+      return <DeckFlashcards />;
+    } else if (activeTab === 'portfolio') {
+      if (showInsights) {
+        return <InsightsFlashcard onCloseInsights={() => setShowInsights(false)} />;
+      }
+      return <PortfolioScreen onReadInsights={() => setShowInsights(true)} />;
+    } else if (activeTab === 'market') {
+      return <PlaceholderScreen title="Market" />;
+    } else if (activeTab === 'wishlist') {
+      return <WishListScreen />;
+    }
+    return <PlaceholderScreen title="Unknown" />;
   };
 
-  return iconMap[routeName] || 'help-circle-outline';
-};
-
-export default function AppLayout() {
   return (
-    <PortfolioProvider>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: styles.tabBar,
-          tabBarActiveTintColor: '#007AFF',
-          tabBarInactiveTintColor: '#777',
-          tabBarLabelStyle: styles.tabLabel,
-        }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Discover',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={getTabIcon('discover', focused)}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="portfolio"
-          options={{
-            title: 'Portfolio',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={getTabIcon('portfolio', focused)}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="trade"
-          options={{
-            title: 'Trade',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={getTabIcon('trade', focused)}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="camera"
-          options={{
-            title: 'Scan',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={getTabIcon('camera', focused)}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profile',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={getTabIcon('profile', focused)}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
-      </Tabs>
-    </PortfolioProvider>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {renderContent()}
+        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: '#FFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E2E2',
-    height: 60,
-    paddingBottom: 5,
-    paddingTop: 5,
-  },
-  tabLabel: {
-    fontSize: 12,
-    marginTop: -2,
-  },
+  safeArea: { flex: 1, backgroundColor: '#f0f0f0' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
