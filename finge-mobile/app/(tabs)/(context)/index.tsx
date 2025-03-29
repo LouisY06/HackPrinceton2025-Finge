@@ -1,5 +1,5 @@
 // src/DeckFlashcards.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,16 +12,44 @@ import {
   GestureResponderEvent,
   PanResponderGestureState,
 } from 'react-native';
-import { DECK_CARDS, DeckCard } from './data';
+import { Ionicons } from '@expo/vector-icons';
+import { DeckCard } from './data'; // DeckCard interface from data.ts
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD_HORIZONTAL = 0.25 * SCREEN_WIDTH;
 const SWIPE_THRESHOLD_VERTICAL = 150;
 
+// Define five demo tickers.
+const demoTickers = ['AAPL', 'MSFT', 'AMZN', 'TSLA', 'GOOGL'];
+
 export default function DeckFlashcards() {
+  const [deckCards, setDeckCards] = useState<DeckCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [readingMode, setReadingMode] = useState<boolean>(false);
   const position = useRef(new Animated.ValueXY()).current;
+
+  // Fetch each ticker's data from the backend.
+  useEffect(() => {
+    const fetchDeckCards = async () => {
+      try {
+        const baseURL = 'http://10.29.252.198:8000/stock/'; // Replace <YOUR_IP_ADDRESS> with your Mac's LAN IP.
+        const fetchedCards: DeckCard[] = await Promise.all(
+          demoTickers.map(async ticker => {
+            const response = await fetch(`${baseURL}${ticker}`);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch data for ${ticker}`);
+            }
+            const data = await response.json();
+            return data; // Data is already in DeckCard format.
+          })
+        );
+        setDeckCards(fetchedCards);
+      } catch (error) {
+        console.error('Error fetching deck cards:', error);
+      }
+    };
+    fetchDeckCards();
+  }, []);
 
   const resetCard = () => {
     position.setValue({ x: 0, y: 0 });
@@ -35,6 +63,7 @@ export default function DeckFlashcards() {
       },
       onPanResponderRelease: (_: GestureResponderEvent, gesture: PanResponderGestureState) => {
         if (gesture.dy < -SWIPE_THRESHOLD_VERTICAL) {
+          // If swiped up beyond threshold, switch to reading mode.
           resetCard();
           setReadingMode(true);
         } else if (Math.abs(gesture.dx) > SWIPE_THRESHOLD_HORIZONTAL) {
@@ -63,7 +92,15 @@ export default function DeckFlashcards() {
     extrapolate: 'clamp',
   });
 
-  if (currentIndex >= DECK_CARDS.length) {
+  if (deckCards.length === 0) {
+    return (
+      <View style={styles.noMoreCards}>
+        <Text style={styles.noMoreCardsText}>Loading cards...</Text>
+      </View>
+    );
+  }
+
+  if (currentIndex >= deckCards.length) {
     return (
       <View style={styles.noMoreCards}>
         <Text style={styles.noMoreCardsText}>No more cards</Text>
@@ -71,7 +108,7 @@ export default function DeckFlashcards() {
     );
   }
 
-  const card: DeckCard = DECK_CARDS[currentIndex];
+  const card: DeckCard = deckCards[currentIndex];
   const animatedStyle = {
     transform: [...position.getTranslateTransform(), { rotate }],
   };
@@ -104,11 +141,11 @@ function renderCardContent(card: DeckCard) {
     <ScrollView contentContainerStyle={styles.cardContentContainer}>
       <View style={styles.headerContainer}>
         <Text style={styles.title}>{card.companyName}</Text>
-        {card.subTitle ? <Text style={styles.subtitle}>{card.subTitle}</Text> : null}
+        {card.subTitle && <Text style={styles.subtitle}>{card.subTitle}</Text>}
         {(card.price || card.priceChange) && (
           <View style={styles.priceContainer}>
-            {card.price ? <Text style={styles.price}>{card.price}</Text> : null}
-            {card.priceChange ? <Text style={styles.priceChange}>{card.priceChange}</Text> : null}
+            {card.price && <Text style={styles.price}>{card.price}</Text>}
+            {card.priceChange && <Text style={styles.priceChange}>{card.priceChange}</Text>}
           </View>
         )}
       </View>
@@ -125,9 +162,7 @@ function renderCardContent(card: DeckCard) {
       {card.additionalStats && card.additionalStats.length > 0 && (
         <View style={styles.additionalStats}>
           {card.additionalStats.map((text, index) => (
-            <Text key={index} style={styles.additionalStatText}>
-              {text}
-            </Text>
+            <Text key={index} style={styles.additionalStatText}>{text}</Text>
           ))}
         </View>
       )}
@@ -155,9 +190,20 @@ function renderCardContent(card: DeckCard) {
 }
 
 const styles = StyleSheet.create({
-  deckContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  noMoreCards: { alignItems: 'center', justifyContent: 'center', height: '80%' },
-  noMoreCardsText: { fontSize: 18, color: '#888' },
+  deckContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noMoreCards: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '80%',
+  },
+  noMoreCardsText: {
+    fontSize: 18,
+    color: '#888',
+  },
   card: {
     width: '90%',
     maxHeight: '80%',
@@ -166,33 +212,106 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     elevation: 5,
   },
-  cardContentContainer: { padding: 20 },
-  headerContainer: { marginBottom: 16 },
-  title: { fontSize: 20, fontWeight: '600' },
-  subtitle: { fontSize: 16, color: '#666', marginTop: 4 },
-  priceContainer: { flexDirection: 'row', marginTop: 8 },
-  price: { fontSize: 20, fontWeight: '700', marginRight: 6 },
-  priceChange: { fontSize: 16, color: 'green' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 10 },
-  statsBox: { alignItems: 'center', flex: 1 },
-  statsTitle: { fontSize: 14, color: '#999' },
-  statsValue: { fontSize: 16, fontWeight: '500', marginTop: 2 },
-  additionalStats: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12, marginBottom: 16 },
-  additionalStatText: { fontSize: 14, color: '#444', marginVertical: 2 },
-  tabsContainer: { flexDirection: 'row', marginBottom: 16 },
-  tabButton: { paddingVertical: 8, paddingHorizontal: 12, marginRight: 8, borderRadius: 16, backgroundColor: '#eee' },
-  tabActive: { backgroundColor: '#007AFF' },
-  tabText: { fontSize: 14, color: '#444' },
-  tabTextActive: { color: '#fff' },
+  cardContentContainer: {
+    padding: 20,
+  },
+  headerContainer: {
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 4,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  price: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginRight: 6,
+  },
+  priceChange: {
+    fontSize: 16,
+    color: 'green',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 10,
+  },
+  statsBox: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statsTitle: {
+    fontSize: 14,
+    color: '#999',
+  },
+  statsValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  additionalStats: {
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 12,
+    marginBottom: 16,
+  },
+  additionalStatText: {
+    fontSize: 14,
+    color: '#444',
+    marginVertical: 2,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  tabButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginRight: 8,
+    borderRadius: 16,
+    backgroundColor: '#eee',
+  },
+  tabActive: {
+    backgroundColor: '#007AFF',
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#444',
+  },
+  tabTextActive: {
+    color: '#fff',
+  },
   contentCard: {
     backgroundColor: '#f8f8f8',
     padding: 16,
     borderRadius: 8,
     marginBottom: 16,
   },
-  contentTitle: { fontSize: 16, fontWeight: '600', marginBottom: 6 },
-  contentText: { fontSize: 14, lineHeight: 20, color: '#444' },
-  swipeHint: { textAlign: 'center', color: '#888', fontSize: 12, marginTop: 10 },
+  contentTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  contentText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#444',
+  },
+  swipeHint: {
+    textAlign: 'center',
+    color: '#888',
+    fontSize: 12,
+    marginTop: 10,
+  },
   readingModeContainer: {
     position: 'absolute',
     top: 0,
@@ -202,9 +321,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     zIndex: 10,
   },
-  closeButton: { alignSelf: 'flex-end', padding: 16 },
-  closeButtonText: { fontSize: 20, fontWeight: 'bold' },
-  readingContentContainer: { padding: 20, paddingBottom: 80 },
-  articleTitle: { fontSize: 24, fontWeight: '600', marginBottom: 16 },
-  articleContent: { fontSize: 16, lineHeight: 24, color: '#444' },
+  closeButton: {
+    alignSelf: 'flex-end',
+    padding: 16,
+  },
+  closeButtonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  readingContentContainer: {
+    padding: 20,
+    paddingBottom: 80,
+  },
+  articleTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  articleContent: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#444',
+  },
 });
