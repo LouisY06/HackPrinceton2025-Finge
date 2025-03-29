@@ -81,14 +81,14 @@ def extract_useful_stock_data(stock_snapshot):
 
 
 # Example Usage
-image_url = "https://t-mobile.scene7.com/is/image/Tmusprod/Apple-iPhone-16-Pro-Max-Black-Titanium-frontimage"
+image_url = "https://upload.wikimedia.org/wikipedia/commons/b/b5/Pepsi_True_Soda_with_Stevia.jpg"
 
 ticker = analyze_image_and_get_ticker(image_url)
 
 if ticker:
     print(f"Identified ticker: {ticker}")
     stock_snapshot = get_stock_snapshot(ticker)
-    print("Stock Snapshot Data:", stock_snapshot)
+    # print("Stock Snapshot Data:", stock_snapshot)
 else:
     print("The identified brand is not publicly traded.")
 
