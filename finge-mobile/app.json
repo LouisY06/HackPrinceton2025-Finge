@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "Finge-mobile",
+    "slug": "finge-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lyu06.fingemobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.lyu06.fingemobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "398d4c33-b490-4251-a78f-7d1c673f2566"
+      }
+    },
+    "owner": "lyu06",
+    "updates": {
+      "url": "https://u.expo.dev/398d4c33-b490-4251-a78f-7d1c673f2566"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}
