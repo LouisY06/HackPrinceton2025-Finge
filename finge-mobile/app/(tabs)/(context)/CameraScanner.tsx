@@ -93,9 +93,6 @@ export default function CameraScanner() {
           `${BACKEND_URL}/stock/${uploadResult.ticker}`
         );
         if (!cardResponse.ok) {
-          throw new Error(
-            `Failed to fetch stock data for ${uploadResult.ticker}`
-          );
         }
         const newCard = await cardResponse.json();
         // Add the new card to the front of the deck

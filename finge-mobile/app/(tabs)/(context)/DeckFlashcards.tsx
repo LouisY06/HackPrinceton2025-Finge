@@ -161,7 +161,6 @@ export default function DeckFlashcards({
               demoTickers.map(async (ticker) => {
                 const response = await fetch(`${baseURL}${ticker}`);
                 if (!response.ok) {
-                  throw new Error(`Failed to fetch data for ${ticker}`);
                 }
                 const data = await response.json();
                 return data; // API returns data in the same format as DECK_CARDS.
@@ -226,7 +225,6 @@ export default function DeckFlashcards({
       // Get a recommended ticker.
       const recResponse = await fetch('http://10.29.252.198:8000/stock_recommendation');
       if (!recResponse.ok) {
-        throw new Error('Failed to fetch stock recommendation');
       }
       const recData = await recResponse.json();
       const recommendedTicker = recData.ticker;
@@ -234,7 +232,6 @@ export default function DeckFlashcards({
       const baseURL = 'http://10.29.252.198:8000/stock/';
       const response = await fetch(`${baseURL}${recommendedTicker}`);
       if (!response.ok) {
-        throw new Error(`Failed to fetch data for recommended ticker ${recommendedTicker}`);
       }
       const newCard: CardData = await response.json();
       // Append the new card at the back.

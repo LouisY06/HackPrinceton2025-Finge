@@ -38,7 +38,6 @@ export default function DeckFlashcards() {
           demoTickers.map(async ticker => {
             const response = await fetch(`${baseURL}${ticker}`);
             if (!response.ok) {
-              throw new Error(`Failed to fetch data for ${ticker}`);
             }
             const data = await response.json();
             return data; // Data is already in DeckCard format.
