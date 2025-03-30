@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-type TabName = 'home' | 'portfolio' | 'market' | 'wishlist';
+type TabName = 'home' | 'portfolio' | 'market' | 'wishlist' | 'camera';
 
 interface BottomNavProps {
   activeTab: TabName;
@@ -47,6 +47,19 @@ export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
         isActive={activeTab === 'wishlist'}
         onPress={() => setActiveTab('wishlist')}
       />
+      <NavItem
+        icon="camera-outline"
+        label="Scan"
+        isActive={activeTab === 'camera'}
+        onPress={() => setActiveTab('camera')}
+      />
+      <NavItem
+        icon="camera-outline"
+        label="Scan"
+        isActive={activeTab === 'camera'}
+        onPress={() => setActiveTab('camera')}
+      />
+
     </View>
   );
 }

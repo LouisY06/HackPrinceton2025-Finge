@@ -7,14 +7,18 @@ import InsightsFlashcard from './InsightsFlashcard';
 import WishListScreen from './WishListScreen';
 import PlaceholderScreen from './PlaceholderScreen';
 import BottomNav from './BottomNav';
+import CameraScanner from './CameraScanner';
 
-type TabName = 'home' | 'portfolio' | 'market' | 'wishlist';
+type TabName = 'home' | 'portfolio' | 'market' | 'wishlist' | 'camera';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [showInsights, setShowInsights] = useState<boolean>(false);
 
   const renderContent = () => {
+    if (activeTab === 'camera') {
+      return <CameraScanner />; // Import this at the top
+    }    
     if (activeTab === 'home') {
       return <DeckFlashcards />;
     } else if (activeTab === 'portfolio') {
