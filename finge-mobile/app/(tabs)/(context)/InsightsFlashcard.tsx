@@ -1,195 +1,204 @@
 // src/InsightsFlashcard.tsx
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Dimensions,
-  Animated,
-  PanResponder,
-  TouchableOpacity,
-  Image,
-} from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { INSIGHTS_DATA } from './data';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SWIPE_THRESHOLD_VERTICAL = 150;
-
-interface InsightsFlashcardProps {
-  onCloseInsights: () => void;
+interface TechStockInsight {
+  companyName: string;
+  ticker: string;
+  ceo: string;
+  stockPrice: string;
+  change: string;
+  marketCap: string;
+  stats: { label: string; value: string }[];
+  additionalStats: string[];
+  content: string;
 }
 
-export default function InsightsFlashcard({ onCloseInsights }: InsightsFlashcardProps) {
-  const [readingMode, setReadingMode] = useState<boolean>(false);
-  const position = useRef(new Animated.ValueXY()).current;
+const insightsData: TechStockInsight[] = [
+  {
+    companyName: "Apple Inc.",
+    ticker: "AAPL",
+    ceo: "Tim Cook",
+    stockPrice: "$150.00",
+    change: "+2.50 (1.70%)",
+    marketCap: "2.5T",
+    stats: [
+      { label: "P/E", value: "28.00" },
+      { label: "Vol", value: "100M" },
+      { label: "EPS", value: "5.00" },
+    ],
+    additionalStats: [
+      "Profit Margin: 20%",
+      "Operating Cash Flow: $80B",
+    ],
+    content: "Apple Inc. is renowned for its innovative products like the iPhone, iPad, and Mac. With a focus on design, ecosystem, and brand loyalty, Apple continues to dominate the tech industry.",
+  },
+  {
+    companyName: "Microsoft Corp.",
+    ticker: "MSFT",
+    ceo: "Satya Nadella",
+    stockPrice: "$300.00",
+    change: "+5.00 (1.70%)",
+    marketCap: "2.2T",
+    stats: [
+      { label: "P/E", value: "35.00" },
+      { label: "Vol", value: "80M" },
+      { label: "EPS", value: "6.00" },
+    ],
+    additionalStats: [
+      "Profit Margin: 30%",
+      "Operating Cash Flow: $60B",
+    ],
+    content: "Microsoft Corporation is a global leader in software, cloud computing, and enterprise services. Its robust growth is driven by a strong focus on innovation and cloud-based solutions.",
+  },
+  {
+    companyName: "Amazon.com Inc.",
+    ticker: "AMZN",
+    ceo: "Andy Jassy",
+    stockPrice: "$3500.00",
+    change: "+25.00 (0.72%)",
+    marketCap: "1.7T",
+    stats: [
+      { label: "P/E", value: "60.00" },
+      { label: "Vol", value: "30M" },
+      { label: "EPS", value: "3.50" },
+    ],
+    additionalStats: [
+      "Profit Margin: 5%",
+      "Operating Cash Flow: $25B",
+    ],
+    content: "Amazon.com Inc. is a global e-commerce and cloud computing powerhouse. Its innovative logistics network and growing cloud services have reshaped retail and technology worldwide.",
+  },
+];
 
-  const resetCard = () => {
-    position.setValue({ x: 0, y: 0 });
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => !readingMode,
-      onPanResponderMove: (_, gesture) => {
-        position.setValue({ x: gesture.dx, y: gesture.dy });
-      },
-      onPanResponderRelease: (_, gesture) => {
-        if (gesture.dy < -SWIPE_THRESHOLD_VERTICAL) {
-          resetCard();
-          setReadingMode(true);
-        } else {
-          Animated.spring(position, {
-            toValue: { x: 0, y: 0 },
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
-
-  const rotate = position.x.interpolate({
-    inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
-    outputRange: ['-10deg', '0deg', '10deg'],
-    extrapolate: 'clamp',
-  });
-
-  const animatedStyle = {
-    transform: [...position.getTranslateTransform(), { rotate }],
-  };
-
+export default function InsightsFlashcard({ onCloseInsights }: { onCloseInsights: () => void }) {
   return (
-    <View style={styles.insightsContainer}>
-      <TouchableOpacity style={styles.insightsBackButton} onPress={onCloseInsights}>
+    <ScrollView contentContainerStyle={styles.container}>
+      <TouchableOpacity style={styles.backButton} onPress={onCloseInsights}>
         <Ionicons name="chevron-back" size={24} color="#444" />
       </TouchableOpacity>
-      <Animated.View style={[styles.card, animatedStyle]} {...panResponder.panHandlers}>
-        <ScrollView contentContainerStyle={styles.cardContentContainer}>
-          {/* Apple Screen Header */}
+      <Text style={styles.pageTitle}>Tech Stocks Insights</Text>
+      {insightsData.map((insight, index) => (
+        <View key={index} style={styles.card}>
           <View style={styles.headerRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.companyName}>{INSIGHTS_DATA.companyName}</Text>
-              <Text style={styles.ticker}>{INSIGHTS_DATA.subTitle}</Text>
+            <View style={styles.headerText}>
+              <Text style={styles.companyName}>{insight.companyName}</Text>
+              <Text style={styles.ticker}>{insight.ticker}</Text>
             </View>
-            <Ionicons name="star-outline" size={24} color="#888" />
+            <View style={styles.infoColumn}>
+              <Text style={styles.detailText}>CEO: {insight.ceo}</Text>
+              <Text style={styles.detailText}>Price: {insight.stockPrice}</Text>
+              <Text style={styles.detailText}>Change: {insight.change}</Text>
+              <Text style={styles.detailText}>Mkt Cap: {insight.marketCap}</Text>
+            </View>
           </View>
-          {/* Stats Rows */}
           <View style={styles.statsRow}>
-            {INSIGHTS_DATA.stats.map((stat, index) => (
-              <View key={index} style={styles.statsBox}>
-                <Text style={styles.statsTitle}>{stat.label}</Text>
-                <Text style={styles.statsValue}>{stat.value}</Text>
+            {insight.stats.map((stat, idx) => (
+              <View key={idx} style={styles.statBox}>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+                <Text style={styles.statValue}>{stat.value}</Text>
               </View>
             ))}
           </View>
-          <View style={styles.statsRow}>
-            {INSIGHTS_DATA.secondStats.map((stat, index) => (
-              <View key={index} style={styles.statsBox}>
-                <Text style={styles.statsTitle}>{stat.label}</Text>
-                <Text style={styles.statsValue}>{stat.value}</Text>
-              </View>
-            ))}
-          </View>
-          {/* Extra Financial Info */}
           <View style={styles.additionalStats}>
-            {INSIGHTS_DATA.additionalStats.map((text, index) => (
-              <Text key={index} style={styles.additionalStatText}>
-                {text}
-              </Text>
+            {insight.additionalStats.map((line, idx) => (
+              <Text key={idx} style={styles.additionalStatText}>{line}</Text>
             ))}
           </View>
-          {/* Tabs */}
-          <View style={styles.tabsContainer}>
-            {INSIGHTS_DATA.tabs.map((tabName, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.tabButton, index === 0 && styles.tabActive]}
-              >
-                <Text style={[styles.tabText, index === 0 && styles.tabTextActive]}>
-                  {tabName}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {/* Content Blocks */}
-          {INSIGHTS_DATA.contentCards.map((content, index) => (
-            <View key={index} style={styles.contentBlock}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.contentTitle}>{content.title}</Text>
-                {content.text ? (
-                  <Text style={styles.contentText}>{content.text}</Text>
-                ) : null}
-              </View>
-              {index === 0 && (
-                <Image
-                  source={{
-                    uri: 'https://via.placeholder.com/80x80.png?text=iPhone+17',
-                  }}
-                  style={styles.contentImage}
-                />
-              )}
-              {/* etc... */}
-            </View>
-          ))}
-          <Text style={styles.swipeHint}>Swipe up for full article reading mode</Text>
-        </ScrollView>
-      </Animated.View>
-
-      {readingMode && (
-        <View style={styles.readingModeContainer}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => setReadingMode(false)}>
-            <Text style={styles.closeButtonText}>X</Text>
-          </TouchableOpacity>
-          <ScrollView contentContainerStyle={styles.readingContentContainer}>
-            <Text style={styles.articleTitle}>Apple Inc. Full Article</Text>
-            <Text style={styles.articleContent}>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit...
-            </Text>
-          </ScrollView>
+          <Text style={styles.contentText}>{insight.content}</Text>
         </View>
-      )}
-    </View>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  insightsContainer: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', paddingBottom: 60 },
-  insightsBackButton: { position: 'absolute', top: 16, left: 16, zIndex: 99 },
+  container: {
+    padding: 16,
+    backgroundColor: '#f0f0f0',
+  },
+  backButton: {
+    marginBottom: 16,
+  },
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
   card: {
-    width: '90%',
-    maxHeight: '80%',
     backgroundColor: '#fff',
-    borderRadius: 10,
-    overflow: 'hidden',
-    elevation: 5,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    // Shadow for iOS and elevation for Android:
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  cardContentContainer: { padding: 20 },
-  headerRow: { flexDirection: 'row', marginBottom: 16, alignItems: 'center' },
-  companyName: { fontSize: 22, fontWeight: '600' },
-  ticker: { fontSize: 16, color: '#666', marginTop: 4 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  statsBox: { alignItems: 'center', flex: 1 },
-  statsTitle: { fontSize: 14, color: '#999' },
-  statsValue: { fontSize: 16, fontWeight: '500', marginTop: 2 },
-  additionalStats: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12, marginBottom: 16 },
-  additionalStatText: { fontSize: 14, color: '#444', marginVertical: 2 },
-  tabsContainer: { flexDirection: 'row', marginBottom: 16 },
-  tabButton: { paddingVertical: 8, paddingHorizontal: 12, marginRight: 8, borderRadius: 16, backgroundColor: '#eee' },
-  tabActive: { backgroundColor: '#007AFF' },
-  tabText: { fontSize: 14, color: '#444' },
-  tabTextActive: { color: '#fff' },
-  contentBlock: { flexDirection: 'row', backgroundColor: '#f8f8f8', padding: 12, borderRadius: 8, marginBottom: 16, alignItems: 'center' },
-  contentTitle: { fontSize: 16, fontWeight: '600', marginBottom: 6 },
-  contentText: { fontSize: 14, lineHeight: 20, color: '#444' },
-  contentImage: { width: 80, height: 80, borderRadius: 8, marginLeft: 12 },
-  swipeHint: { textAlign: 'center', color: '#888', fontSize: 12, marginTop: 10 },
-  readingModeContainer: {
-    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: '#fff', zIndex: 10,
+  headerRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
   },
-  closeButton: { alignSelf: 'flex-end', padding: 16 },
-  closeButtonText: { fontSize: 20, fontWeight: 'bold' },
-  readingContentContainer: { padding: 20, paddingBottom: 80 },
-  articleTitle: { fontSize: 24, fontWeight: '600', marginBottom: 16 },
-  articleContent: { fontSize: 16, lineHeight: 24, color: '#444' },
+  headerText: {
+    flex: 1,
+  },
+  companyName: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#333',
+  },
+  ticker: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 4,
+  },
+  infoColumn: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 2,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  statBox: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#999',
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  additionalStats: {
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 8,
+    marginBottom: 12,
+  },
+  additionalStatText: {
+    fontSize: 14,
+    color: '#444',
+  },
+  contentText: {
+    fontSize: 16,
+    color: '#444',
+    lineHeight: 24,
+  },
 });
+
+export { InsightsFlashcard };
