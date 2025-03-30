@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 
@@ -16,45 +16,46 @@ interface PortfolioScreenProps {
   onReadInsights: () => void;
 }
 
-export default function PortfolioScreen({ portfolioItems }: PortfolioScreenProps) {
+export default function PortfolioScreen({ portfolioItems, onReadInsights }: PortfolioScreenProps) {
   const router = useRouter();
 
   const handleReadInsights = () => {
     // Navigate using a relative route path to the InsightsFlashcard screen
-    router.push('./InsightsFlashcard');  
+    router.push('./InsightsFlashcard');
   };
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <View style={styles.container}>
-        {/* Header White Box */}
-        <View style={styles.headerBox}>
-          <Text style={styles.welcomeText}>Welcome Sam.</Text>
-          <Text style={styles.checkText}>Check out how your portfolio is doing</Text>
-          <TouchableOpacity style={styles.readInsightsButton} onPress={handleReadInsights}>
-            <Text style={styles.readInsightsButtonText}>Read Insights</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Portfolio Content White Box */}
-        <View style={styles.scrollableContainer}>
-          <ScrollView contentContainerStyle={styles.portfolioListContainer}>
-            <Text style={styles.portfolioTitle}>Your Portfolio</Text>
-            {portfolioItems.map((item) => (
-              <View key={item.key} style={styles.portfolioItem}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.portfolioItemTitle}>{item.title}</Text>
-                  <Text style={styles.portfolioItemSubtitle}>{item.subtitle}</Text>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          {/* Header */}
+          <View style={styles.headerBox}>
+            <Text style={styles.welcomeText}>Welcome Sam.</Text>
+            <Text style={styles.checkText}>Check out how your portfolio is doing</Text>
+            <TouchableOpacity style={styles.readInsightsButton} onPress={handleReadInsights}>
+              <Text style={styles.readInsightsButtonText}>Read Insights</Text>
+            </TouchableOpacity>
+          </View>
+          {/* Portfolio List */}
+          <View style={styles.scrollableContainer}>
+            <ScrollView contentContainerStyle={styles.portfolioListContainer}>
+              <Text style={styles.portfolioTitle}>Your Portfolio</Text>
+              {portfolioItems.map((item) => (
+                <View key={item.key} style={styles.portfolioItem}>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.portfolioItemTitle}>{item.title}</Text>
+                    <Text style={styles.portfolioItemSubtitle}>{item.subtitle}</Text>
+                  </View>
+                  <View style={styles.priceContainerRow}>
+                    <Text style={styles.priceText}>{item.price}</Text>
+                    <Text style={styles.changeText}>{item.change}</Text>
+                  </View>
                 </View>
-                <View style={styles.priceContainerRow}>
-                  <Text style={styles.priceText}>{item.price}</Text>
-                  <Text style={styles.changeText}>{item.change}</Text>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
+              ))}
+            </ScrollView>
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
     </GestureHandlerRootView>
   );
 }
@@ -63,11 +64,13 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#f0f0f0',
+  },
+  container: {
+    flex: 1,
     padding: 16,
-    marginTop: 40,
   },
   headerBox: {
     backgroundColor: '#fff',
@@ -107,13 +110,12 @@ const styles = StyleSheet.create({
   },
   scrollableContainer: {
     flex: 1,
-    marginHorizontal: 16,
-    marginBottom: 16,
     backgroundColor: '#fff',
     borderRadius: 16,
     overflow: 'hidden',
   },
   portfolioListContainer: {
+    flexGrow: 1,
     padding: 16,
     paddingBottom: 24,
   },
@@ -127,10 +129,14 @@ const styles = StyleSheet.create({
   portfolioItem: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    marginBottom: 12,
     padding: 16,
     borderRadius: 16,
     alignItems: 'center',
+    marginBottom: 12,
+    // Optionally add a shadow or border for separation.
+  },
+  itemInfo: {
+    flex: 1,
   },
   portfolioItemTitle: {
     fontSize: 16,
