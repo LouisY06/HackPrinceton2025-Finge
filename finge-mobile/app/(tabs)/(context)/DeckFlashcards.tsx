@@ -135,37 +135,42 @@ export default function DeckFlashcards({
   // On mount, if useAPI is true, fetch the deck cards and update DECK_CARDS.
   useEffect(() => {
     if (useAPI) {
-      const fetchDeckCards = async () => {
-        try {
-          const baseURL = 'http://10.29.252.198:8000/stock/'; // Your API endpoint
-          const fetchedCards: CardData[] = await Promise.all(
-            demoTickers.map(async (ticker) => {
-              const response = await fetch(`${baseURL}${ticker}`);
-              if (!response.ok) {
-                throw new Error(`Failed to fetch data for ${ticker}`);
-              }
-              const data = await response.json();
-              return data; // API returns data in the same format as DECK_CARDS.
-            })
-          );
-          // Replace DECK_CARDS with fetched data.
-          DECK_CARDS.length = 0;
-          DECK_CARDS.push(...fetchedCards);
-          setIsReady(true);
-          setRefresh((prev) => !prev);
-          // Reset external deck index to 0 (queue behavior)
-          setDeckIndex(0);
-        } catch (error) {
-          console.error('Error fetching deck cards from API:', error);
-          setIsReady(true);
-        }
-      };
-      fetchDeckCards();
+      if (DECK_CARDS.length === 3) {
+        const fetchDeckCards = async () => {
+          try {
+            const baseURL = 'http://10.29.252.198:8000/stock/'; // Your API endpoint
+            const fetchedCards: CardData[] = await Promise.all(
+              demoTickers.map(async (ticker) => {
+                const response = await fetch(`${baseURL}${ticker}`);
+                if (!response.ok) {
+                  throw new Error(`Failed to fetch data for ${ticker}`);
+                }
+                const data = await response.json();
+                return data; // API returns data in the same format as DECK_CARDS.
+              })
+            );
+            // Replace DECK_CARDS with fetched data:
+            DECK_CARDS.length = 0;
+            DECK_CARDS.push(...fetchedCards);
+            setIsReady(true);
+            setRefresh(prev => !prev);
+            // Reset deck index to 0:
+            setDeckIndex(0);
+          } catch (error) {
+            console.error('Error fetching deck cards from API:', error);
+            setIsReady(true);
+          }
+        };
+        fetchDeckCards();
+      } else {
+        // If DECK_CARDS already has data, simply mark as ready.
+        setIsReady(true);
+      }
     } else {
       setIsReady(true);
     }
   }, []);
-
+  
   // Reset the animated position when deckIndex changes.
   useEffect(() => {
     position.setValue({ x: 0, y: 0 });
@@ -219,7 +224,7 @@ export default function DeckFlashcards({
       DECK_CARDS.push(newCard);
       setRefresh((prev) => !prev); // Force re-render.
     } catch (error) {
-      console.error("Error fetching new card:", error);
+      console.log("Error fetching new card:", error);
     }
   };
 
