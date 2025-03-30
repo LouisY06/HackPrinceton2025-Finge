@@ -1,4 +1,4 @@
-// DeckFlashcards.tsx
+// src/DeckFlashcards.tsx
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
@@ -9,6 +9,9 @@ import {
   Dimensions,
   ScrollView,
   TouchableOpacity,
+  Modal,
+  GestureResponderEvent,
+  PanResponderGestureState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -118,8 +121,8 @@ export default function DeckFlashcards({
   setDeckIndex,
   onSwipeRight,
 }: DeckFlashcardsProps) {
-  const [readingMode, setReadingMode] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [readingMode, setReadingMode] = useState<boolean>(false);
+  const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const position = useRef(new Animated.ValueXY()).current;
 
   // Reset the animated value when deckIndex changes
@@ -164,11 +167,11 @@ export default function DeckFlashcards({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !readingMode && !isAnimating,
-      onPanResponderMove: (_, gesture) => {
+      onStartShouldSetPanResponder: (): boolean => !readingMode && !isAnimating,
+      onPanResponderMove: (_: GestureResponderEvent, gesture: PanResponderGestureState) => {
         position.setValue({ x: gesture.dx, y: gesture.dy });
       },
-      onPanResponderRelease: (_, gesture) => {
+      onPanResponderRelease: (_: GestureResponderEvent, gesture: PanResponderGestureState) => {
         // Check if horizontal movement is dominant
         if (Math.abs(gesture.dx) > Math.abs(gesture.dy)) {
           if (gesture.dx > SWIPE_THRESHOLD_HORIZONTAL) {
@@ -203,13 +206,19 @@ export default function DeckFlashcards({
             }).start();
           }
         } else {
-          // If vertical movement is dominant, snap back
-          Animated.spring(position, {
-            toValue: { x: 0, y: 0 },
-            friction: 6,
-            tension: 100,
-            useNativeDriver: true,
-          }).start();
+          // Check vertical movement for reading mode
+          if (gesture.dy < -SWIPE_THRESHOLD_VERTICAL) {
+            // Swipe up: open reading mode modal
+            resetCard();
+            setReadingMode(true);
+          } else {
+            Animated.spring(position, {
+              toValue: { x: 0, y: 0 },
+              friction: 6,
+              tension: 100,
+              useNativeDriver: true,
+            }).start();
+          }
         }
       },
       onPanResponderTerminate: () => {
@@ -237,16 +246,16 @@ export default function DeckFlashcards({
     );
   }
 
-  const card = DECK_CARDS[deckIndex];
+  const card: CardData = DECK_CARDS[deckIndex];
+  const animatedStyle = {
+    transform: [...position.getTranslateTransform(), { rotate }],
+  };
 
   return (
     <View style={styles.deckContainer}>
       <Animated.View
         key={deckIndex} // Force re-mount for each new card
-        style={[
-          styles.card,
-          { transform: [...position.getTranslateTransform(), { rotate }] },
-        ]}
+        style={[styles.card, animatedStyle]}
         {...panResponder.panHandlers}
       >
         <ScrollView contentContainerStyle={styles.cardInner}>
@@ -321,6 +330,25 @@ export default function DeckFlashcards({
           <Ionicons name="checkmark-circle" size={48} color="#4caf50" />
         </TouchableOpacity>
       </View>
+      {/* Modal for reading mode */}
+      <Modal
+        visible={readingMode}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setReadingMode(false)}
+      >
+        <View style={styles.readingModeContainer}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => setReadingMode(false)}>
+            <Text style={styles.closeButtonText}>X</Text>
+          </TouchableOpacity>
+          <ScrollView contentContainerStyle={styles.readingContentContainer}>
+            <Text style={styles.articleTitle}>{card.companyName} Full Article</Text>
+            <Text style={styles.articleContent}>
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, nisl nec tincidunt lacinia, nunc est laoreet dolor, ac convallis nulla massa vitae turpis. {/* Replace with actual article text */}
+            </Text>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -443,5 +471,32 @@ const styles = StyleSheet.create({
   },
   swipeButton: {
     marginHorizontal: 20,
+  },
+  readingModeContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingTop: 40,
+  },
+  closeButton: {
+    alignSelf: 'flex-end',
+    padding: 16,
+  },
+  closeButtonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  readingContentContainer: {
+    padding: 20,
+    paddingBottom: 80,
+  },
+  articleTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  articleContent: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#444',
   },
 });

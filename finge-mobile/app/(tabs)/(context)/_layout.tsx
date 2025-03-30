@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { SafeAreaView, View, StyleSheet } from 'react-native';
 import DeckFlashcards from './DeckFlashcards';
 import PortfolioScreen from './PortfolioScreen';
-import PlaceholderScreen from './PlaceholderScreen';
+import CameraScreen from './CameraScreen'; // This replaces PlaceholderScreen for the camera tab.
 import WishListScreen from './WishListScreen';
 import BottomNav from './BottomNav';
 
@@ -63,23 +63,24 @@ export default function App() {
             onSwipeRight={handleSwipeRight}
           />
         );
-        case 'portfolio':
-          return (
-            <PortfolioScreen
-              onReadInsights={() => {
-                // whatever you want this to do
-              }}
-              onSwipeRight={(card) => {
-                // handle swipe right for portfolio
-              }}
-            />
-          );
+      case 'portfolio':
+        return (
+          <PortfolioScreen
+            onReadInsights={() => {
+              // Implement insights reading logic here
+            }}
+            onSwipeRight={(card) => {
+              // Implement portfolio swipe logic here
+            }}
+          />
+        );
       case 'market':
-        return <PlaceholderScreen title="Market" />;
+        // The market tab is now a Camera tab.
+        return <CameraScreen />;
       case 'wishlist':
         return <WishListScreen wishList={wishList} onRemoveWish={handleRemoveWish} />;
       default:
-        return <PlaceholderScreen title="Unknown" />;
+        return <CameraScreen />;
     }
   };
 

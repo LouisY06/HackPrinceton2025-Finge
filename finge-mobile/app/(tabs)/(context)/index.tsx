@@ -32,7 +32,7 @@ export default function DeckFlashcards() {
   useEffect(() => {
     const fetchDeckCards = async () => {
       try {
-        const baseURL = 'http://10.29.252.198:8000/stock/'; // Replace <YOUR_IP_ADDRESS> with your Mac's LAN IP.
+        const baseURL = 'http://10.29.252.198:8000/stock/'; // Replace with your Mac's LAN IP.
         const fetchedCards: DeckCard[] = await Promise.all(
           demoTickers.map(async ticker => {
             const response = await fetch(`${baseURL}${ticker}`);
@@ -50,6 +50,11 @@ export default function DeckFlashcards() {
     };
     fetchDeckCards();
   }, []);
+
+  // Reset the animated value whenever the currentIndex changes.
+  useEffect(() => {
+    position.setValue({ x: 0, y: 0 });
+  }, [currentIndex]);
 
   const resetCard = () => {
     position.setValue({ x: 0, y: 0 });
@@ -115,7 +120,11 @@ export default function DeckFlashcards() {
 
   return (
     <View style={styles.deckContainer}>
-      <Animated.View style={[styles.card, animatedStyle]} {...panResponder.panHandlers}>
+      <Animated.View
+        key={currentIndex} // Added unique key for re-mounting
+        style={[styles.card, animatedStyle]}
+        {...panResponder.panHandlers}
+      >
         {renderCardContent(card)}
       </Animated.View>
 
