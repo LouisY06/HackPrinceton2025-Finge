@@ -36,22 +36,10 @@ export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
         onPress={() => setActiveTab('portfolio')}
       />
       <NavItem
-        icon="camera-outline"
-        label="Camera"
-        isActive={activeTab === 'market'}
-        onPress={() => setActiveTab('market')}
-      />
-      <NavItem
         icon="star-outline"
         label="Wish List"
         isActive={activeTab === 'wishlist'}
         onPress={() => setActiveTab('wishlist')}
-      />
-      <NavItem
-        icon="camera-outline"
-        label="Scan"
-        isActive={activeTab === 'camera'}
-        onPress={() => setActiveTab('camera')}
       />
       <NavItem
         icon="camera-outline"
