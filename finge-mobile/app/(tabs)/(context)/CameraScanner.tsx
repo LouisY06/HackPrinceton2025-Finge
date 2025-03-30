@@ -7,10 +7,19 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+
+// Use the correct IP address based on platform
+const BACKEND_URL = Platform.select({
+  ios: 'http://10.29.123.212:8000',
+  android: 'http://10.0.2.2:8000',
+  default: 'http://10.29.123.212:8000',
+});
+
 
 export default function CameraScanner() {
   const [image, setImage] = useState<string | null>(null);
@@ -34,35 +43,56 @@ export default function CameraScanner() {
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       setImage(uri);
-      sendImageToDatabase(uri);
+      await uploadImage(uri);
     }
   };
 
-  const sendImageToDatabase = async (uri: string) => {
+  const uploadImage = async (uri: string) => {
     setLoading(true);
-    const formData = new FormData();
-    formData.append("file", {
-      uri,
-      name: "photo.jpg",
-      type: "image/jpeg",
-    } as any);
-
     try {
-      const res = await fetch("http://<your-ip>:8000/save-image", {
+      console.log('Starting image upload to:', BACKEND_URL);
+      console.log('Image URI:', uri);
+
+      // Create form data
+      const formData = new FormData();
+      formData.append("file", {
+        uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
+        type: 'image/jpeg',
+        name: 'photo.jpg',
+      } as any);
+
+      // First, upload the image
+      console.log('Sending upload request...');
+      const uploadResponse = await fetch(`${BACKEND_URL}/upload-image`, {
         method: "POST",
         body: formData,
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      const json = await res.json();
-      console.log("Image saved with ID:", json.image_id);
+      console.log('Upload response status:', uploadResponse.status);
+      
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error('Upload failed:', errorText);
+        throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
+      }
 
-      const analysis = await fetch("http://<your-ip>:8000/analyze-latest");
-      const result = await analysis.json();
-      setStockInfo(result);
-    } catch (e) {
-      console.error("Error uploading image:", e);
-      Alert.alert("Error", "Failed to send image to backend.");
+      const uploadResult = await uploadResponse.json();
+      console.log("Upload successful:", uploadResult);
+
+      setStockInfo(uploadResult);
+
+    } catch (error) {
+      console.error("Error details:", error);
+      Alert.alert(
+        "Upload Failed",
+        __DEV__ 
+          ? `Error: ${(error as Error).message}`
+          : "Failed to process image. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -80,7 +110,7 @@ export default function CameraScanner() {
         <>
           <Image source={{ uri: image }} style={styles.image} />
           {loading ? (
-            <ActivityIndicator size="large" />
+            <ActivityIndicator size="large" color="#007AFF" />
           ) : (
             <TouchableOpacity style={styles.retakeButton} onPress={openCamera}>
               <Text style={styles.buttonText}>📷 Retake Photo</Text>
@@ -90,9 +120,21 @@ export default function CameraScanner() {
           {stockInfo && (
             <View style={styles.infoContainer}>
               <Text style={styles.infoTitle}>Ticker: {stockInfo.ticker}</Text>
-              <Text style={styles.infoText}>Company: {stockInfo.yahooFinance.companyName}</Text>
-              <Text style={styles.infoText}>Price: {stockInfo.yahooFinance.price}</Text>
-              <Text style={styles.infoText}>NASDAQ: {stockInfo.nasdaq.lastSalePrice}</Text>
+              {stockInfo.yahooFinance && (
+                <>
+                  <Text style={styles.infoText}>
+                    Company: {stockInfo.yahooFinance.companyName}
+                  </Text>
+                  <Text style={styles.infoText}>
+                    Price: {stockInfo.yahooFinance.price}
+                  </Text>
+                </>
+              )}
+              {stockInfo.nasdaq && (
+                <Text style={styles.infoText}>
+                  NASDAQ: {stockInfo.nasdaq.lastSalePrice}
+                </Text>
+              )}
             </View>
           )}
         </>

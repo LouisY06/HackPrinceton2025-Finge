@@ -8,22 +8,21 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import os
 
-from fastapi import UploadFile, File, APIRouter
+from fastapi import UploadFile, File
 from fastapi.responses import JSONResponse
-import shutil
-import uuid
-import os
-
 import base64
 from bson import ObjectId
+from fastapi.staticfiles import StaticFiles
+import uuid
 
+# Load environment variables
 load_dotenv()
+CLOUD_NAME = os.getenv("CLOUD_NAME")  # e.g. 'demo'
+CLOUDINARY_UPLOAD_PRESET = os.getenv("CLOUDINARY_UPLOAD_PRESET") or "unsigned_preset"
 
-# MongoDB Connection
+# MongoDB connection
 mongo_client = MongoClient(os.getenv("MONGODB_URI"))
-# Select your database ("HackPrinceton") from MongoDB
 db = mongo_client["HackPrinceton"]
-# Select (or create) your collection ("FingeDB") from your database
 images_collection = db["FingeDB"]
 
 # Lunon/OpenAI setup
@@ -31,28 +30,11 @@ lunon_client = OpenAI(
     api_key=os.getenv("LUNON_API_KEY"),
     base_url="https://api.lunon.com/v1"
 )
+
+# Create FastAPI instance
 app = FastAPI()
 
-
-@app.post("/save-image")
-async def save_image(file: UploadFile = File(...)):
-    try:
-        # Read and encode image
-        image_bytes = await file.read()
-        image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-
-        # Save to MongoDB
-        result = images_collection.insert_one({
-            "image_data": image_base64,
-            "filename": file.filename
-        })
-
-        # Return the inserted document's ID
-        return {"image_id": str(result.inserted_id)}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-# Enable CORS (adjust as needed)
+# Enable CORS as needed
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -61,235 +43,183 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class ImageRequest(BaseModel):
-    image_url: str
+####################
+# Helper Functions #
+####################
 
-
-# Reuse functions from your existing scripts here (shortened for clarity)
-def analyze_image_and_get_ticker(image_url):
+def analyze_image_and_get_ticker(image_url: str) -> str:
     prompt = ("Identify the brand in this image and return only the associated "
               "stock ticker symbol. If it is not publicly traded, return 'NULL'.")
 
     response = lunon_client.chat.completions.create(
         model="Default",
-        messages=[{"role": "user", "content": [
-            {"type": "text", "text": prompt},
-            {"type": "image_url", "image_url": {"url": image_url}}
-        ]}]
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": image_url}}
+            ]
+        }]
     )
 
     ticker = response.choices[0].message.content.strip().upper()
-
     if ticker == "NULL" or not ticker.isalnum():
         return None
-
     return ticker
 
-def get_stock_snapshot(ticker):
+def transform_stock_to_deckcard(ticker: str) -> dict:
+    """Fetches stock data from Yahoo (via yfinance) and shapes it into a DeckCard format."""
+    stock = yf.Ticker(ticker)
+    info = stock.info
+
+    if "regularMarketPrice" not in info:
+        raise HTTPException(status_code=404, detail=f"Ticker {ticker} not found or no data available.")
+
+    return {
+        "key": info.get("symbol"),
+        "companyName": info.get("shortName", info.get("longName")),
+        "subTitle": info.get("symbol"),
+        "price": str(info.get("regularMarketPrice", "None")),
+        "priceChange": f"{info.get('regularMarketChange', 'None')} ({info.get('regularMarketChangePercent', 'None')}%)",
+        "stats": [
+            {"label": "Vol",     "value": str(info.get("regularMarketVolume", "None"))},
+            {"label": "P/E",     "value": str(info.get("trailingPE", "None"))},
+            {"label": "Mkt Cap", "value": str(info.get("marketCap", "None"))},
+        ],
+        "additionalStats": [],
+        "tabs": ["All", "Details"],
+        "contentCards": [
+            {"title": "About", "text": info.get("longBusinessSummary", "None")},
+            {"title": "Chart", "text": "Chart placeholder"},
+        ],
+    }
+
+def get_stock_snapshot(ticker: str) -> dict:
+    """Fetches stock snapshot from Nasdaq API."""
     url = f'https://api.nasdaq.com/api/quote/{ticker}/info'
-
-    headers = {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0',
-    }
-
-    params = {
-        'assetclass': 'stocks'
-    }
-
+    headers = {'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0'}
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=10)
-
+        response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
             return response.json()
-        else:
-            return {
-                "error": f"Failed to fetch data: {response.status_code}",
-                "reason": response.text
-            }
+        return {"error": f"Failed to fetch data: {response.status_code}", "reason": response.text}
     except requests.exceptions.Timeout:
         return {"error": "Request timed out"}
     except requests.exceptions.RequestException as e:
         return {"error": str(e)}
 
-def extract_useful_stock_data(stock_snapshot):
+def extract_useful_stock_data(stock_snapshot: dict) -> dict:
+    """Parses Nasdaq's JSON to extract relevant fields."""
     if 'data' not in stock_snapshot or not stock_snapshot['data']:
         return None
 
     data = stock_snapshot['data']
-
-    extracted = {
-        "symbol": data.get('symbol', 'N/A'),
-        "companyName": data.get('companyName', 'N/A'),
-        "exchange": data.get('exchange', 'N/A'),
-        "lastSalePrice": data['primaryData'].get('lastSalePrice', 'N/A'),
-        "netChange": data['primaryData'].get('netChange', 'N/A'),
+    return {
+        "symbol":         data.get('symbol', 'N/A'),
+        "companyName":    data.get('companyName', 'N/A'),
+        "exchange":       data.get('exchange', 'N/A'),
+        "lastSalePrice":  data['primaryData'].get('lastSalePrice', 'N/A'),
+        "netChange":      data['primaryData'].get('netChange', 'N/A'),
         "percentageChange": data['primaryData'].get('percentageChange', 'N/A'),
-        "volume": data['primaryData'].get('volume', 'N/A'),
-        "marketStatus": data.get('marketStatus', 'N/A'),
-        "lastTradeDate": data['primaryData'].get('lastTradeTimestamp', 'N/A'),
+        "volume":         data['primaryData'].get('volume', 'N/A'),
+        "marketStatus":   data.get('marketStatus', 'N/A'),
+        "lastTradeDate":  data['primaryData'].get('lastTradeTimestamp', 'N/A'),
         "fiftyTwoWeekRange": data['keyStats']['fiftyTwoWeekHighLow'].get('value', 'N/A')
     }
 
-    return extracted
-
-
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
+#############################
+# Upload Image to Cloudinary
+#############################
 @app.post("/upload-image")
 async def upload_image(file: UploadFile = File(...)):
-    # Save uploaded file locally
-    filename = f"{uuid.uuid4()}.jpg"
-    file_path = os.path.join(UPLOAD_DIR, filename)
-
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    # Convert local path to file:// URL (or serve via static files if needed)
-    image_url = f"file://{os.path.abspath(file_path)}"
-
-    # Use your existing analysis function
+    """Receives an image from the user, uploads to Cloudinary, analyses via OpenAI, returns stock data."""
     try:
-        ticker = analyze_image_and_get_ticker(image_url)
-        if not ticker:
-            return JSONResponse(status_code=404, content={"error": "Could not extract ticker."})
+        # 1) read file bytes
+        file_bytes = await file.read()
 
-        yahoo = transform_stock_to_deckcard(ticker)
-        nasdaq_snapshot = get_stock_snapshot(ticker)
-        nasdaq = extract_useful_stock_data(nasdaq_snapshot)
+        # 2) post to Cloudinary
+        cloud_url = f"https://api.cloudinary.com/v1_1/{CLOUD_NAME}/image/upload"
+        data = {"upload_preset": CLOUDINARY_UPLOAD_PRESET}
+        files = {"file": ("temp.jpg", file_bytes, "image/jpeg")}
 
-        # Store to MongoDB
-        images_collection.insert_one({"image_path": file_path, "ticker": ticker})
-
-        return {
-            "ticker": ticker,
-            "yahooFinance": yahoo,
-            "nasdaq": nasdaq,
-            "localPath": file_path,
-        }
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@app.get("/analyze-latest")
-async def analyze_latest():
-    # Get the most recent image
-    doc = images_collection.find_one(sort=[("_id", -1)])
-    if not doc or "image_data" not in doc:
-        return JSONResponse(status_code=404, content={"error": "No image found."})
-
-    # Decode base64
-    image_bytes = base64.b64decode(doc["image_data"])
-
-    # OPTIONAL: save temporarily if your AI tool needs a file path
-    with open("temp.jpg", "wb") as f:
-        f.write(image_bytes)
-
-    # Use local path for analysis
-    try:
-        ticker = analyze_image_and_get_ticker("temp.jpg")
-        yahoo = transform_stock_to_deckcard(ticker)
-        nasdaq = extract_useful_stock_data(get_stock_snapshot(ticker))
+        print("Uploading to Cloudinary...")
+        resp = requests.post(cloud_url, data=data, files=files)
+        cloud_resp = resp.json()
+        if resp.status_code != 200 or "secure_url" not in cloud_resp:
+            raise Exception(f"Cloudinary upload failed: {cloud_resp}")
         
+        image_url = cloud_resp["secure_url"]
+        print("Image URL:", image_url)
+
+        # 3) analyze with OpenAI (Lunon)
+        ticker = analyze_image_and_get_ticker(image_url)
+        print("Ticker:", ticker)
+        if not ticker:
+            return JSONResponse(status_code=404, content={"error": "Could not extract ticker from image."})
+
+        # 4) fetch yFinance + Nasdaq data
+        yahoo_data = transform_stock_to_deckcard(ticker)
+        nasdaq_snap = get_stock_snapshot(ticker)
+        nasdaq_data = extract_useful_stock_data(nasdaq_snap)
+
+        # 5) Optionally store info in MongoDB
+        images_collection.insert_one({"image_url": image_url, "ticker": ticker})
+
+        # 6) Return all data to client
         return {
-            "ticker": ticker,
-            "yahooFinance": yahoo,
-            "nasdaq": nasdaq
+            "ticker":       ticker,
+            "yahooFinance": yahoo_data,
+            "nasdaq":       nasdaq_data,
+            "cloudinaryUrl": image_url
         }
+
     except Exception as e:
+        print("Error:", e)
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+##########################################
+# if you still want image-to-stock route #
+##########################################
+class ImageRequest(BaseModel):
+    image_url: str
 
-# Endpoint to handle image upload and return combined Nasdaq and Yahoo Finance data
 @app.post("/image-to-stock")
 async def image_to_stock(request: ImageRequest):
+    """If user or other service provides a direct public image_url, do the same analysis flow."""
     image_url = request.image_url
+    images_collection.insert_one({"image_url": image_url})
 
-    # Step 1: Store image URL in MongoDB
-    image_doc = {"image_url": image_url}
-    images_collection.insert_one(image_doc)
-
-    # Step 2: Identify ticker from image
+    # analyze
     ticker = analyze_image_and_get_ticker(image_url)
     if not ticker:
-        raise HTTPException(status_code=404, detail="Brand not publicly traded or could not identify ticker.")
+        raise HTTPException(status_code=404, detail="Brand not publicly traded or ticker not found.")
 
-    # Step 3: Get Yahoo Finance data
+    # fetch stock data
     try:
         yahoo_data = transform_stock_to_deckcard(ticker)
     except Exception as e:
         yahoo_data = {"error": str(e)}
 
-    # Step 4: Get Nasdaq Data
-    nasdaq_url = f'https://api.nasdaq.com/api/quote/{ticker}/info'
-    headers = {'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0'}
+    nasdaq_snap = get_stock_snapshot(ticker)
+    nasdaq_data = extract_useful_stock_data(nasdaq_snap)
 
-    nasdaq_response = requests.get(nasdaq_url, headers=headers)
-    if nasdaq_response.status_code == 200:
-        nasdaq_json = nasdaq_response.json()
-        nasdaq_data = extract_useful_stock_data(nasdaq_json)
-    else:
-        nasdaq_data = {"error": f"Failed to fetch Nasdaq data: {nasdaq_response.status_code}"}
-
-    # Combine data into structured response
-    combined_response = {
+    return {
         "ticker": ticker,
         "yahooFinance": yahoo_data,
         "nasdaq": nasdaq_data,
         "imageStored": True
     }
 
-    return combined_response
-
-
-
-
-
-def transform_stock_to_deckcard(ticker: str) -> dict:
-    # Use yfinance to fetch stock data
-    stock = yf.Ticker(ticker)
-    info = stock.info
-
-    # Check required field; if missing, raise an error
-    if "regularMarketPrice" not in info:
-        raise HTTPException(status_code=404, detail=f"Ticker {ticker} not found or no data available.")
-
-    # Build a DeckCard-format dictionary.
-    deck_card = {
-        "key": info.get("symbol", None),
-        "companyName": info.get("shortName", info.get("longName", None)),
-        "subTitle": info.get("symbol", None),
-        "price": str(info.get("regularMarketPrice", "None")),
-        # Combine change and change percent for display.
-        "priceChange": f"{info.get('regularMarketChange', 'None')} ({info.get('regularMarketChangePercent', 'None')}%)",
-        "stats": [
-            { "label": "Vol", "value": str(info.get("regularMarketVolume", "None")) },
-            { "label": "P/E", "value": str(info.get("trailingPE", "None")) },
-            { "label": "Mkt Cap", "value": str(info.get("marketCap", "None")) },
-        ],
-        "additionalStats": [],
-        "tabs": ["All", "Details"],
-        "contentCards": [
-            { "title": "About", "text": info.get("longBusinessSummary", "None") },
-            { "title": "Chart", "text": "Chart placeholder" },
-        ],
-    }
-    return deck_card
-
-'''
-# image -> ticker
-# POST ticker database
-# gets all the tickers for the database
-'''
-
-#TAKES IN A TICKER, RETURNS INFO
+#####################
+# Additional routes #
+#####################
 @app.get("/stock/{ticker}")
 async def get_stock(ticker: str):
     try:
-        deck_card = transform_stock_to_deckcard(ticker)
-        return deck_card
+        return transform_stock_to_deckcard(ticker)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# To run: uvicorn main:app --host 0.0.0.0 --reload
+
+# Launch command:
+# uvicorn main:app --host 0.0.0.0 --reload
