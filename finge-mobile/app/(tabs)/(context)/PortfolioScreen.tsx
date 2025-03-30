@@ -1,4 +1,3 @@
-// src/PortfolioScreen.tsx
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,16 +13,16 @@ export interface PortfolioItemType {
 
 interface PortfolioScreenProps {
   portfolioItems: PortfolioItemType[];
+  onReadInsights: () => void;
 }
 
 export default function PortfolioScreen({ portfolioItems }: PortfolioScreenProps) {
   const router = useRouter();
 
   const handleReadInsights = () => {
-    // Use an absolute route path.
-// Instead of an absolute file path, use the route path defined by your folder structure:
-  router.push('/(tabs)/(context)/InsightsFlashcard');  
-};
+    // Navigate using a relative route path to the InsightsFlashcard screen
+    router.push('./InsightsFlashcard');  
+  };
 
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -68,6 +67,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f0f0f0',
     padding: 16,
+    marginTop: 40,
   },
   headerBox: {
     backgroundColor: '#fff',

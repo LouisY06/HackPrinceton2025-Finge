@@ -58,22 +58,24 @@ export default function ImagePickerScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Logo Scanner</Text>
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.button} onPress={pickImage}>
-          <Ionicons name="image-outline" size={28} color="#fff" />
-          <Text style={styles.buttonText}>Gallery</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={takePhoto}>
-          <Ionicons name="camera-outline" size={28} color="#fff" />
-          <Text style={styles.buttonText}>Camera</Text>
-        </TouchableOpacity>
+      <View style={styles.card}>
+        <Text style={styles.title}>Logo Scanner</Text>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.button} onPress={pickImage}>
+            <Ionicons name="image-outline" size={28} color="#fff" />
+            <Text style={styles.buttonText}>Gallery</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={takePhoto}>
+            <Ionicons name="camera-outline" size={28} color="#fff" />
+            <Text style={styles.buttonText}>Camera</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       {imageUri && (
         <Image source={{ uri: imageUri }} style={styles.imagePreview} />
       )}
       <Text style={styles.infoText}>
-        Once you capture or select a logo, it can be sent to your backend to identify the company stocks.
+        Snap a photo of something to know more about its company!
       </Text>
     </View>
   );
@@ -82,10 +84,18 @@ export default function ImagePickerScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#fff', 
+    backgroundColor: '#f2f2f2', // gray background
     alignItems: 'center', 
     justifyContent: 'center', 
     padding: 20 
+  },
+  card: {
+    backgroundColor: '#fff', // white rounded rectangle
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
+    width: '100%',
   },
   title: { 
     fontSize: 24, 
@@ -97,7 +107,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    marginBottom: 20,
   },
   button: {
     flexDirection: 'row',

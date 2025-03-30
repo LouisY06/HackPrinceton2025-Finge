@@ -7,6 +7,7 @@ import CameraScreen from './CameraScreen'; // This replaces PlaceholderScreen fo
 import WishListScreen from './WishListScreen';
 import BottomNav from './BottomNav';
 
+
 export type TabName = 'home' | 'portfolio' | 'market' | 'wishlist';
 
 // Type used by your swipeable deck cards
