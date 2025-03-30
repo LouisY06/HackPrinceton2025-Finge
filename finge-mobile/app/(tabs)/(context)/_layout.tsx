@@ -35,6 +35,8 @@ export default function App() {
 
   // Called when a deck card is swiped right
   const handleSwipeRight = (card: CardData) => {
+    console.log("handleSwipeRight called with card:", card);
+    
     const newWish: WishListItem = {
       key: card.key + '-wish',
       title: card.companyName,
@@ -43,11 +45,21 @@ export default function App() {
       change: card.priceChange,
       readingText: `${card.companyName} was added to your wish list.`,
     };
-    if (!wishList.find((item) => item.key === newWish.key)) {
-      setWishList([...wishList, newWish]);
-    }
+    
+    console.log("Constructed newWish:", newWish);
+    
+    setWishList((prev) => {
+      console.log("Previous wishList:", prev);
+      if (!prev.find((item) => item.key === newWish.key)) {
+        const updatedWishList = [...prev, newWish];
+        console.log("Updated wishList:", updatedWishList);
+        return updatedWishList;
+      }
+      console.log("WishList remains unchanged:", prev);
+      return prev;
+    });
   };
-
+    
   // Called when a wish card is swiped left in the WishListScreen
   const handleRemoveWish = (key: string) => {
     setWishList(wishList.filter((item) => item.key !== key));

@@ -1,4 +1,4 @@
-// src/DeckFlashcards.tsx
+// DeckFlashcards.tsx
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
@@ -124,47 +124,85 @@ export default function DeckFlashcards({
   const [readingMode, setReadingMode] = useState<boolean>(false);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const position = useRef(new Animated.ValueXY()).current;
-
-  // Reset the animated value when deckIndex changes
+  
+  // Use a ref for synchronous index tracking
+  const currentIndexRef = useRef(deckIndex);
   useEffect(() => {
+    currentIndexRef.current = deckIndex;
     position.setValue({ x: 0, y: 0 });
-  }, [deckIndex]);
+  }, [deckIndex, position]);
 
+  // Always reset the card position
   const resetCard = () => {
     position.setValue({ x: 0, y: 0 });
   };
 
-  // Button-triggered swipe right
+  // Helper to run animation with a fallback to always reset the card
+  const runAnimation = (
+    animation: Animated.CompositeAnimation,
+    callback?: () => void
+  ) => {
+    let hasReset = false;
+    const safeReset = () => {
+      if (!hasReset) {
+        hasReset = true;
+        resetCard();
+        setIsAnimating(false);
+        if (callback) callback();
+      }
+    };
+
+    animation.start(({ finished }) => {
+      if (finished) {
+        safeReset();
+      }
+    });
+    // Fallback timeout in case the animation callback doesn't fire
+    setTimeout(safeReset, 350);
+  };
+
+  // Process a right swipe using the synchronous index
+  const processRightSwipe = (gestureDy: number = 0) => {
+    const card = DECK_CARDS[currentIndexRef.current];
+    onSwipeRight(card);
+    currentIndexRef.current += 1;
+    setDeckIndex(currentIndexRef.current);
+    runAnimation(
+      Animated.timing(position, {
+        toValue: { x: SCREEN_WIDTH, y: gestureDy },
+        duration: 300,
+        useNativeDriver: true,
+      })
+    );
+  };
+
+  // Process a left swipe
+  const processLeftSwipe = (gestureDy: number = 0) => {
+    currentIndexRef.current += 1;
+    setDeckIndex(currentIndexRef.current);
+    runAnimation(
+      Animated.timing(position, {
+        toValue: { x: -SCREEN_WIDTH, y: gestureDy },
+        duration: 300,
+        useNativeDriver: true,
+      })
+    );
+  };
+
+  // Button swipe handlers
   const handleButtonSwipeRight = () => {
     if (isAnimating) return;
     setIsAnimating(true);
-    onSwipeRight(DECK_CARDS[deckIndex]);
-    Animated.timing(position, {
-      toValue: { x: SCREEN_WIDTH, y: 0 },
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      resetCard();
-      setDeckIndex(deckIndex + 1);
-      setIsAnimating(false);
-    });
+    processRightSwipe();
   };
 
-  // Button-triggered swipe left
   const handleButtonSwipeLeft = () => {
     if (isAnimating) return;
     setIsAnimating(true);
-    Animated.timing(position, {
-      toValue: { x: -SCREEN_WIDTH, y: 0 },
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      resetCard();
-      setDeckIndex(deckIndex + 1);
-      setIsAnimating(false);
-    });
+    processLeftSwipe();
   };
 
+  // PanResponder to handle swipe gestures
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (): boolean => !readingMode && !isAnimating,
@@ -172,62 +210,49 @@ export default function DeckFlashcards({
         position.setValue({ x: gesture.dx, y: gesture.dy });
       },
       onPanResponderRelease: (_: GestureResponderEvent, gesture: PanResponderGestureState) => {
-        // Check if horizontal movement is dominant
         if (Math.abs(gesture.dx) > Math.abs(gesture.dy)) {
           if (gesture.dx > SWIPE_THRESHOLD_HORIZONTAL) {
             setIsAnimating(true);
-            onSwipeRight(DECK_CARDS[deckIndex]);
-            Animated.timing(position, {
-              toValue: { x: SCREEN_WIDTH, y: gesture.dy },
-              duration: 300,
-              useNativeDriver: true,
-            }).start(() => {
-              resetCard();
-              setDeckIndex(deckIndex + 1);
-              setIsAnimating(false);
-            });
+            processRightSwipe(gesture.dy);
           } else if (gesture.dx < -SWIPE_THRESHOLD_HORIZONTAL) {
             setIsAnimating(true);
-            Animated.timing(position, {
-              toValue: { x: -SCREEN_WIDTH, y: gesture.dy },
-              duration: 300,
-              useNativeDriver: true,
-            }).start(() => {
-              resetCard();
-              setDeckIndex(deckIndex + 1);
-              setIsAnimating(false);
-            });
+            processLeftSwipe(gesture.dy);
           } else {
-            Animated.spring(position, {
-              toValue: { x: 0, y: 0 },
-              friction: 6,
-              tension: 100,
-              useNativeDriver: true,
-            }).start();
+            runAnimation(
+              Animated.spring(position, {
+                toValue: { x: 0, y: 0 },
+                friction: 6,
+                tension: 100,
+                useNativeDriver: true,
+              })
+            );
           }
         } else {
-          // Check vertical movement for reading mode
+          // Vertical swipe: open reading mode if swiped up enough
           if (gesture.dy < -SWIPE_THRESHOLD_VERTICAL) {
-            // Swipe up: open reading mode modal
             resetCard();
             setReadingMode(true);
           } else {
-            Animated.spring(position, {
-              toValue: { x: 0, y: 0 },
-              friction: 6,
-              tension: 100,
-              useNativeDriver: true,
-            }).start();
+            runAnimation(
+              Animated.spring(position, {
+                toValue: { x: 0, y: 0 },
+                friction: 6,
+                tension: 100,
+                useNativeDriver: true,
+              })
+            );
           }
         }
       },
       onPanResponderTerminate: () => {
-        Animated.spring(position, {
-          toValue: { x: 0, y: 0 },
-          friction: 6,
-          tension: 100,
-          useNativeDriver: true,
-        }).start();
+        runAnimation(
+          Animated.spring(position, {
+            toValue: { x: 0, y: 0 },
+            friction: 6,
+            tension: 100,
+            useNativeDriver: true,
+          })
+        );
       },
     })
   ).current;
@@ -238,7 +263,7 @@ export default function DeckFlashcards({
     extrapolate: 'clamp',
   });
 
-  if (deckIndex >= DECK_CARDS.length) {
+  if (currentIndexRef.current >= DECK_CARDS.length) {
     return (
       <View style={styles.noMoreCards}>
         <Text style={styles.noMoreCardsText}>No more cards</Text>
@@ -246,7 +271,7 @@ export default function DeckFlashcards({
     );
   }
 
-  const card: CardData = DECK_CARDS[deckIndex];
+  const card: CardData = DECK_CARDS[currentIndexRef.current];
   const animatedStyle = {
     transform: [...position.getTranslateTransform(), { rotate }],
   };
@@ -254,24 +279,19 @@ export default function DeckFlashcards({
   return (
     <View style={styles.deckContainer}>
       <Animated.View
-        key={deckIndex} // Force re-mount for each new card
+        key={currentIndexRef.current} // Force re-mount for each new card
         style={[styles.card, animatedStyle]}
         {...panResponder.panHandlers}
       >
         <ScrollView contentContainerStyle={styles.cardInner}>
-          {/* Company & Ticker */}
           <Text style={styles.companyName}>{card.companyName}</Text>
           {card.subTitle ? <Text style={styles.ticker}>{card.subTitle}</Text> : null}
-
-          {/* Price & Change */}
           {(card.price || card.priceChange) && (
             <View style={styles.priceRow}>
               {card.price ? <Text style={styles.price}>{card.price}</Text> : null}
               {card.priceChange ? <Text style={styles.priceChange}>{card.priceChange}</Text> : null}
             </View>
           )}
-
-          {/* Stats Row */}
           {card.stats && (
             <View style={styles.statsRow}>
               {card.stats.map((stat, index) => (
@@ -282,19 +302,13 @@ export default function DeckFlashcards({
               ))}
             </View>
           )}
-
-          {/* Additional Stats */}
           {card.additionalStats && (
             <View style={styles.additionalStats}>
               {card.additionalStats.map((line, index) => (
-                <Text key={index} style={styles.additionalStatLine}>
-                  {line}
-                </Text>
+                <Text key={index} style={styles.additionalStatLine}>{line}</Text>
               ))}
             </View>
           )}
-
-          {/* Tabs */}
           {card.tabs && (
             <View style={styles.tabsRow}>
               {card.tabs.map((tabName, index) => (
@@ -304,8 +318,6 @@ export default function DeckFlashcards({
               ))}
             </View>
           )}
-
-          {/* Content Cards */}
           {card.contentCards && (
             <View>
               {card.contentCards.map((content, index) => (
@@ -316,12 +328,9 @@ export default function DeckFlashcards({
               ))}
             </View>
           )}
-
-          {/* Hint for reading mode */}
           <Text style={styles.swipeHint}>Swipe up for full article reading mode</Text>
         </ScrollView>
       </Animated.View>
-      {/* Buttons for swipe actions */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity onPress={handleButtonSwipeLeft} style={styles.swipeButton}>
           <Ionicons name="close-circle" size={48} color="#ff4d4d" />
@@ -330,7 +339,6 @@ export default function DeckFlashcards({
           <Ionicons name="checkmark-circle" size={48} color="#4caf50" />
         </TouchableOpacity>
       </View>
-      {/* Modal for reading mode */}
       <Modal
         visible={readingMode}
         animationType="slide"
@@ -344,7 +352,7 @@ export default function DeckFlashcards({
           <ScrollView contentContainerStyle={styles.readingContentContainer}>
             <Text style={styles.articleTitle}>{card.companyName} Full Article</Text>
             <Text style={styles.articleContent}>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, nisl nec tincidunt lacinia, nunc est laoreet dolor, ac convallis nulla massa vitae turpis. {/* Replace with actual article text */}
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, nisl nec tincidunt lacinia, nunc est laoreet dolor, ac convallis nulla massa vitae turpis.
             </Text>
           </ScrollView>
         </View>
