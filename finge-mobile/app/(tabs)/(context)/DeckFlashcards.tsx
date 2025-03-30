@@ -20,7 +20,6 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD_HORIZONTAL = 0.25 * SCREEN_WIDTH;
 const SWIPE_THRESHOLD_VERTICAL = 150;
 
-// Export the CardData interface
 export interface CardData {
   key: string;
   companyName: string;
@@ -121,25 +120,43 @@ let DECK_CARDS: CardData[] = [
 
 const demoTickers = ['AAPL', 'MSFT', 'AMZN', 'TSLA', 'GOOGL'];
 
+// Global variable to hold the dummy state updater for re-rendering.
+let globalForceRefresh: () => void = () => {};
+
+export function setGlobalForceRefresh(forceRefreshFn: () => void) {
+  globalForceRefresh = forceRefreshFn;
+}
+
+// Exported helper function to add a new card to the front of the deck.
+// This is to be called from CameraScanner after image upload.
+export function addCardToFront(newCard: CardData) {
+  DECK_CARDS.unshift(newCard);
+  globalForceRefresh();
+}
+
 export default function DeckFlashcards({
   deckIndex,
   setDeckIndex,
   onSwipeRight,
 }: DeckFlashcardsProps) {
-  // Although deckIndex is passed in, we'll use a queue so we always show the first card.
   const [readingMode, setReadingMode] = useState<boolean>(false);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const [isReady, setIsReady] = useState(false);
   const [refresh, setRefresh] = useState(false); // Dummy state to force re-render
   const position = useRef(new Animated.ValueXY()).current;
 
+  // Register the dummy state updater globally for addCardToFront.
+  useEffect(() => {
+    setGlobalForceRefresh(() => setRefresh(prev => !prev));
+  }, []);
+
   // On mount, if useAPI is true, fetch the deck cards and update DECK_CARDS.
   useEffect(() => {
     if (useAPI) {
-      if (DECK_CARDS.length === 3) {
+      if (DECK_CARDS.length === 3) { // assume 3 cards is the original dummy deck
         const fetchDeckCards = async () => {
           try {
-            const baseURL = 'http://10.29.252.198:8000/stock/'; // Your API endpoint
+            const baseURL = 'http://10.29.252.198:8000/stock/'; // API endpoint
             const fetchedCards: CardData[] = await Promise.all(
               demoTickers.map(async (ticker) => {
                 const response = await fetch(`${baseURL}${ticker}`);
@@ -155,7 +172,6 @@ export default function DeckFlashcards({
             DECK_CARDS.push(...fetchedCards);
             setIsReady(true);
             setRefresh(prev => !prev);
-            // Reset deck index to 0:
             setDeckIndex(0);
           } catch (error) {
             console.error('Error fetching deck cards from API:', error);
@@ -164,14 +180,13 @@ export default function DeckFlashcards({
         };
         fetchDeckCards();
       } else {
-        // If DECK_CARDS already has data, simply mark as ready.
         setIsReady(true);
       }
     } else {
       setIsReady(true);
     }
   }, []);
-  
+
   // Reset the animated position when deckIndex changes.
   useEffect(() => {
     position.setValue({ x: 0, y: 0 });
@@ -205,7 +220,7 @@ export default function DeckFlashcards({
     setTimeout(safeReset, 350);
   };
 
-  // Helper: fetch a new card using the recommendation endpoint and append it to DECK_CARDS.
+  // Helper: fetch a new card using the recommendation endpoint and append it to the back of DECK_CARDS.
   const fetchNewCard = async () => {
     try {
       // Get a recommended ticker.
@@ -222,10 +237,11 @@ export default function DeckFlashcards({
         throw new Error(`Failed to fetch data for recommended ticker ${recommendedTicker}`);
       }
       const newCard: CardData = await response.json();
+      // Append the new card at the back.
       DECK_CARDS.push(newCard);
-      setRefresh((prev) => !prev); // Force re-render.
+      setRefresh(prev => !prev); // Force re-render.
     } catch (error) {
-      console.log("Error fetching new card:", error);
+      console.error("Error fetching new card:", error);
     }
   };
 
@@ -235,7 +251,6 @@ export default function DeckFlashcards({
     onSwipeRight(card);
     // Remove the first card from the queue.
     DECK_CARDS.shift();
-    // Force external deck index to always be 0.
     setDeckIndex(0);
     runAnimation(
       Animated.timing(position, {
@@ -262,7 +277,6 @@ export default function DeckFlashcards({
     fetchNewCard();
   };
 
-  // Button swipe handlers.
   const handleButtonSwipeRight = () => {
     if (isAnimating) return;
     setIsAnimating(true);
@@ -275,7 +289,6 @@ export default function DeckFlashcards({
     processLeftSwipe();
   };
 
-  // PanResponder for swipe gestures.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (): boolean => !readingMode && !isAnimating,
@@ -360,7 +373,7 @@ export default function DeckFlashcards({
   return (
     <View style={styles.deckContainer}>
       <Animated.View
-        key={card.key} // Use card key for remounting each new card.
+        key={card.key}
         style={[styles.card, animatedStyle]}
         {...panResponder.panHandlers}
       >
@@ -431,17 +444,19 @@ export default function DeckFlashcards({
             <Text style={styles.closeButtonText}>X</Text>
           </TouchableOpacity>
           <ScrollView contentContainerStyle={styles.readingContentContainer}>
-            <Text style={styles.articleTitle}>{card.companyName} (AAPL) Stock Analysis and Its Role in a Personal Portfolio</Text>
+            <Text style={styles.articleTitle}>
+              {card.companyName} (AAPL) Stock Analysis and Its Role in a Personal Portfolio
+            </Text>
             <Text style={styles.articleContent}>
-            Apple Inc. has long been considered one of the most influential and valuable companies globally, driven by its innovative product lines, strong brand loyalty, and consistent financial performance. As of recent years, Apple has continued to maintain its position as a market leader through sustained revenue growth, steady cash flow, and a strong balance sheet, even amidst periods of market uncertainty. These characteristics make Apple a frequent candidate for inclusion in personal investment portfolios.
-
-From a fundamentals perspective, Apple’s business is well-diversified across products and services. While flagship products like the iPhone remain central to its revenue, the company has significantly expanded its services segment, including Apple Music, iCloud, and Apple Pay. This transition not only supports recurring revenue streams but also reduces dependency on hardware sales alone. Furthermore, Apple’s ecosystem strategy fosters customer retention and cross-product integration, which adds to its competitive advantage.
-
-Apple’s financial strength is also reflected in its history of stable dividend payments and regular share buybacks, which provide additional value to shareholders. The company’s ability to return capital while still investing in research, development, and strategic acquisitions signals financial discipline and long-term vision. Moreover, Apple maintains one of the largest cash reserves among publicly listed companies, offering it flexibility during economic downturns.
-
-When considering Apple’s potential role in a personal stock portfolio, it serves well as a core holding due to its combination of growth and stability. Apple is often viewed as a “blue-chip” stock — a company with a reputation for quality and reliability. Its inclusion can help anchor a portfolio, offering a degree of protection during volatile markets while still contributing to capital appreciation over time. However, investors should also be aware of certain risks, such as reliance on global supply chains, regulatory challenges, and the competitive nature of the technology sector.
-
-For long-term investors, Apple offers a balanced opportunity. Its consistent performance, coupled with its potential for innovation and expansion into areas such as augmented reality, artificial intelligence, and financial services, could drive future growth. While no investment is without risk, Apple’s track record and financial resilience make it a reasonable and potentially rewarding addition to a diversified personal portfolio.
+              Apple Inc. has long been considered one of the most influential and valuable companies globally, driven by its innovative product lines, strong brand loyalty, and consistent financial performance. As of recent years, Apple has continued to maintain its position as a market leader through sustained revenue growth, steady cash flow, and a strong balance sheet, even amidst periods of market uncertainty. These characteristics make Apple a frequent candidate for inclusion in personal investment portfolios.
+              
+              From a fundamentals perspective, Apple’s business is well-diversified across products and services. While flagship products like the iPhone remain central to its revenue, the company has significantly expanded its services segment, including Apple Music, iCloud, and Apple Pay. This transition not only supports recurring revenue streams but also reduces dependency on hardware sales alone. Furthermore, Apple’s ecosystem strategy fosters customer retention and cross-product integration, which adds to its competitive advantage.
+              
+              Apple’s financial strength is also reflected in its history of stable dividend payments and regular share buybacks, which provide additional value to shareholders. The company’s ability to return capital while still investing in research, development, and strategic acquisitions signals financial discipline and long-term vision. Moreover, Apple maintains one of the largest cash reserves among publicly listed companies, offering it flexibility during economic downturns.
+              
+              When considering Apple’s potential role in a personal stock portfolio, it serves well as a core holding due to its combination of growth and stability. Apple is often viewed as a “blue-chip” stock — a company with a reputation for quality and reliability. Its inclusion can help anchor a portfolio, offering a degree of protection during volatile markets while still contributing to capital appreciation over time. However, investors should also be aware of certain risks, such as reliance on global supply chains, regulatory challenges, and the competitive nature of the technology sector.
+              
+              For long-term investors, Apple offers a balanced opportunity. Its consistent performance, coupled with its potential for innovation and expansion into areas such as augmented reality, artificial intelligence, and financial services, could drive future growth. While no investment is without risk, Apple’s track record and financial resilience make it a reasonable and potentially rewarding addition to a diversified personal portfolio.
             </Text>
           </ScrollView>
         </View>

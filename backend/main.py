@@ -14,6 +14,7 @@ import base64
 from bson import ObjectId
 from fastapi.staticfiles import StaticFiles
 import uuid
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -47,7 +48,7 @@ app.add_middleware(
 
 df = pd.read_csv("../stock_ticker.csv")
 tickers_list = df["Symbol"].tolist()
-print("Tickers loaded:", tickers_list)
+# print("Tickers loaded:", tickers_list)
 ####################
 # Helper Functions #
 ####################
@@ -55,7 +56,7 @@ print("Tickers loaded:", tickers_list)
 def analyze_image_and_get_ticker(image_url: str) -> str:
     prompt = ("Identify the brand in this image and return only the associated "
               "stock ticker symbol. If it is not publicly traded, return 'NULL'.")
-
+    print("in lumon")
     response = lunon_client.chat.completions.create(
         model="Default",
         messages=[{
@@ -66,10 +67,14 @@ def analyze_image_and_get_ticker(image_url: str) -> str:
             ]
         }]
     )
-
+    print("post lumon")
     ticker = response.choices[0].message.content.strip().upper()
+    print(ticker)
     if ticker == "NULL" or not ticker.isalnum():
+        print("no response")
+
         return None
+    print("return ticker")
     return ticker
 
 def transform_stock_to_deckcard(ticker: str) -> dict:
@@ -174,10 +179,13 @@ def extract_useful_stock_data(stock_snapshot: dict) -> dict:
 #############################
 @app.post("/upload-image")
 async def upload_image(file: UploadFile = File(...)):
+
     """Receives an image from the user, uploads to Cloudinary, analyses via OpenAI, returns stock data."""
     try:
+        print('pre bytes', file=sys.stderr)
         # 1) read file bytes
         file_bytes = await file.read()
+        print('post bytes', file=sys.stderr)
 
         # 2) post to Cloudinary
         cloud_url = f"https://api.cloudinary.com/v1_1/{CLOUD_NAME}/image/upload"
@@ -200,18 +208,18 @@ async def upload_image(file: UploadFile = File(...)):
             return JSONResponse(status_code=404, content={"error": "Could not extract ticker from image."})
 
         # 4) fetch yFinance + Nasdaq data
-        yahoo_data = transform_stock_to_deckcard(ticker)
-        nasdaq_snap = get_stock_snapshot(ticker)
-        nasdaq_data = extract_useful_stock_data(nasdaq_snap)
+        # yahoo_data = transform_stock_to_deckcard(ticker)
+        # nasdaq_snap = get_stock_snapshot(ticker)
+        # nasdaq_data = extract_useful_stock_data(nasdaq_snap)
 
         # 5) Optionally store info in MongoDB
-        images_collection.insert_one({"image_url": image_url, "ticker": ticker})
+        # images_collection.insert_one({"image_url": image_url, "ticker": ticker})
 
         # 6) Return all data to client
         return {
             "ticker":       ticker,
-            "yahooFinance": yahoo_data,
-            "nasdaq":       nasdaq_data,
+            "yahooFinance": None,
+            "nasdaq":       None,
             "cloudinaryUrl": image_url
         }
 

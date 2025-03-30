@@ -12,14 +12,14 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { addCardToFront } from "./DeckFlashcards";
 
 // Use the correct IP address based on platform
 const BACKEND_URL = Platform.select({
-  ios: 'http://10.29.123.212:8000',
-  android: 'http://10.0.2.2:8000',
-  default: 'http://10.29.123.212:8000',
+  ios: "http://10.29.252.198:8000",
+  android: "http://10.0.2.2:8000",
+  default: "http://10.29.252.198:8000",
 });
-
 
 export default function CameraScanner() {
   const [image, setImage] = useState<string | null>(null);
@@ -50,34 +50,36 @@ export default function CameraScanner() {
   const uploadImage = async (uri: string) => {
     setLoading(true);
     try {
-      console.log('Starting image upload to:', BACKEND_URL);
-      console.log('Image URI:', uri);
+      console.log("Starting image upload to:", BACKEND_URL);
+      console.log("Image URI:", uri);
 
-      // Create form data
+      // Create form data for the image
       const formData = new FormData();
       formData.append("file", {
-        uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
-        type: 'image/jpeg',
-        name: 'photo.jpg',
+        uri: Platform.OS === "ios" ? uri.replace("file://", "") : uri,
+        type: "image/jpeg",
+        name: "photo.jpg",
       } as any);
 
-      // First, upload the image
-      console.log('Sending upload request...');
+      // Upload the image to the backend
+      console.log("Sending upload request...");
       const uploadResponse = await fetch(`${BACKEND_URL}/upload-image`, {
         method: "POST",
         body: formData,
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data',
+          Accept: "application/json",
+          "Content-Type": "multipart/form-data",
         },
       });
 
-      console.log('Upload response status:', uploadResponse.status);
-      
+      console.log("Upload response status:", uploadResponse.status);
+
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        console.error('Upload failed:', errorText);
-        throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
+        console.error("Upload failed:", errorText);
+        throw new Error(
+          `Upload failed with status ${uploadResponse.status}: ${errorText}`
+        );
       }
 
       const uploadResult = await uploadResponse.json();
@@ -85,11 +87,27 @@ export default function CameraScanner() {
 
       setStockInfo(uploadResult);
 
+      // Now fetch the full card data using the returned ticker
+      try {
+        const cardResponse = await fetch(
+          `${BACKEND_URL}/stock/${uploadResult.ticker}`
+        );
+        if (!cardResponse.ok) {
+          throw new Error(
+            `Failed to fetch stock data for ${uploadResult.ticker}`
+          );
+        }
+        const newCard = await cardResponse.json();
+        // Add the new card to the front of the deck
+        addCardToFront(newCard);
+      } catch (error) {
+        console.error("Error adding new card from image upload:", error);
+      }
     } catch (error) {
       console.error("Error details:", error);
       Alert.alert(
         "Upload Failed",
-        __DEV__ 
+        __DEV__
           ? `Error: ${(error as Error).message}`
           : "Failed to process image. Please try again."
       );
@@ -100,9 +118,6 @@ export default function CameraScanner() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={30} color="#4A4A4A" />
-      </TouchableOpacity>
 
       <Text style={styles.header}>Camera Scanner</Text>
 
@@ -113,7 +128,7 @@ export default function CameraScanner() {
             <ActivityIndicator size="large" color="#007AFF" />
           ) : (
             <TouchableOpacity style={styles.retakeButton} onPress={openCamera}>
-              <Text style={styles.buttonText}>📷 Retake Photo</Text>
+              <Text style={styles.buttonText}>Retake Photo</Text>
             </TouchableOpacity>
           )}
 
@@ -159,7 +174,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   retakeButton: {
-    backgroundColor: "#34A853",
+    backgroundColor: "#4A90E2",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
