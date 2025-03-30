@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import yfinance as yf
-
+import pandas as pd
+import random
+import os 
 app = FastAPI()
 
 # Enable CORS (adjust as needed)
@@ -12,6 +14,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+print("PWD")
+print(os.getcwd())
+
+df = pd.read_csv("../stock_ticker.csv")
+tickers_list = df["Symbol"].tolist()
+print("Tickers loaded:", tickers_list)
 
 
 
@@ -95,3 +103,15 @@ async def get_stock(ticker: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 # To run: uvicorn main:app --reload
+
+@app.get("/stock_recommendation")
+async def stock_recommendation():
+    max_attempts = 100
+    for _ in range(max_attempts):
+        ticker = random.choice(tickers_list)
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        # Check that the stock has a regularMarketPrice (a sign it exists on yfinance)
+        if info.get("regularMarketPrice") is not None:
+            return {"ticker": ticker}
+    raise HTTPException(status_code=404, detail="No valid ticker found after several attempts.")

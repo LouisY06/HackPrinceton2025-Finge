@@ -16,7 +16,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 const useAPI = true;
-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD_HORIZONTAL = 0.25 * SCREEN_WIDTH;
 const SWIPE_THRESHOLD_VERTICAL = 150;
@@ -39,6 +38,7 @@ interface DeckFlashcardsProps {
   onSwipeRight: (card: CardData) => void;
 }
 
+// DO NOT rename DECK_CARDS.
 let DECK_CARDS: CardData[] = [
   {
     key: 'nvidia',
@@ -117,6 +117,7 @@ let DECK_CARDS: CardData[] = [
     ],
   },
 ];
+
 const demoTickers = ['AAPL', 'MSFT', 'AMZN', 'TSLA', 'GOOGL'];
 
 export default function DeckFlashcards({
@@ -124,13 +125,14 @@ export default function DeckFlashcards({
   setDeckIndex,
   onSwipeRight,
 }: DeckFlashcardsProps) {
+  // Although deckIndex is passed in, we'll use a queue so we always show the first card.
   const [readingMode, setReadingMode] = useState<boolean>(false);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const [isReady, setIsReady] = useState(false);
+  const [refresh, setRefresh] = useState(false); // Dummy state to force re-render
   const position = useRef(new Animated.ValueXY()).current;
-  
-  // Use a ref for synchronous index tracking
-  const currentIndexRef = useRef(deckIndex);
+
+  // On mount, if useAPI is true, fetch the deck cards and update DECK_CARDS.
   useEffect(() => {
     if (useAPI) {
       const fetchDeckCards = async () => {
@@ -143,32 +145,38 @@ export default function DeckFlashcards({
                 throw new Error(`Failed to fetch data for ${ticker}`);
               }
               const data = await response.json();
-              return data; // Assumes API returns data in the same format as DECK_CARDS.
+              return data; // API returns data in the same format as DECK_CARDS.
             })
           );
-          // Update DECK_CARDS in place:
+          // Replace DECK_CARDS with fetched data.
           DECK_CARDS.length = 0;
           DECK_CARDS.push(...fetchedCards);
-          setIsReady(true);  // Mark as ready after fetching.
+          setIsReady(true);
+          setRefresh((prev) => !prev);
+          // Reset external deck index to 0 (queue behavior)
+          setDeckIndex(0);
         } catch (error) {
           console.error('Error fetching deck cards from API:', error);
-          // Fallback to demo data:
           setIsReady(true);
         }
       };
       fetchDeckCards();
     } else {
-      // If not using API, mark as ready immediately.
       setIsReady(true);
     }
   }, []);
-    
-  // Always reset the card position
+
+  // Reset the animated position when deckIndex changes.
+  useEffect(() => {
+    position.setValue({ x: 0, y: 0 });
+  }, [deckIndex, position]);
+
+  // Helper: reset card position.
   const resetCard = () => {
     position.setValue({ x: 0, y: 0 });
   };
 
-  // Helper to run animation with a fallback to always reset the card
+  // Helper: run animation with fallback.
   const runAnimation = (
     animation: Animated.CompositeAnimation,
     callback?: () => void
@@ -188,16 +196,41 @@ export default function DeckFlashcards({
         safeReset();
       }
     });
-    // Fallback timeout in case the animation callback doesn't fire
     setTimeout(safeReset, 350);
   };
 
-  // Process a right swipe using the synchronous index
+  // Helper: fetch a new card using the recommendation endpoint and append it to DECK_CARDS.
+  const fetchNewCard = async () => {
+    try {
+      // Get a recommended ticker.
+      const recResponse = await fetch('http://10.29.252.198:8000/stock_recommendation');
+      if (!recResponse.ok) {
+        throw new Error('Failed to fetch stock recommendation');
+      }
+      const recData = await recResponse.json();
+      const recommendedTicker = recData.ticker;
+      // Now fetch the card data for that ticker.
+      const baseURL = 'http://10.29.252.198:8000/stock/';
+      const response = await fetch(`${baseURL}${recommendedTicker}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch data for recommended ticker ${recommendedTicker}`);
+      }
+      const newCard: CardData = await response.json();
+      DECK_CARDS.push(newCard);
+      setRefresh((prev) => !prev); // Force re-render.
+    } catch (error) {
+      console.error("Error fetching new card:", error);
+    }
+  };
+
+  // Process a right swipe.
   const processRightSwipe = (gestureDy: number = 0) => {
-    const card = DECK_CARDS[currentIndexRef.current];
+    const card = DECK_CARDS[0]; // Always take the first card.
     onSwipeRight(card);
-    currentIndexRef.current += 1;
-    setDeckIndex(currentIndexRef.current);
+    // Remove the first card from the queue.
+    DECK_CARDS.shift();
+    // Force external deck index to always be 0.
+    setDeckIndex(0);
     runAnimation(
       Animated.timing(position, {
         toValue: { x: SCREEN_WIDTH, y: gestureDy },
@@ -205,12 +238,14 @@ export default function DeckFlashcards({
         useNativeDriver: true,
       })
     );
+    fetchNewCard();
   };
 
-  // Process a left swipe
+  // Process a left swipe.
   const processLeftSwipe = (gestureDy: number = 0) => {
-    currentIndexRef.current += 1;
-    setDeckIndex(currentIndexRef.current);
+    // Remove the first card without calling onSwipeRight.
+    DECK_CARDS.shift();
+    setDeckIndex(0);
     runAnimation(
       Animated.timing(position, {
         toValue: { x: -SCREEN_WIDTH, y: gestureDy },
@@ -218,9 +253,10 @@ export default function DeckFlashcards({
         useNativeDriver: true,
       })
     );
+    fetchNewCard();
   };
 
-  // Button swipe handlers
+  // Button swipe handlers.
   const handleButtonSwipeRight = () => {
     if (isAnimating) return;
     setIsAnimating(true);
@@ -233,7 +269,7 @@ export default function DeckFlashcards({
     processLeftSwipe();
   };
 
-  // PanResponder to handle swipe gestures
+  // PanResponder for swipe gestures.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (): boolean => !readingMode && !isAnimating,
@@ -259,7 +295,6 @@ export default function DeckFlashcards({
             );
           }
         } else {
-          // Vertical swipe: open reading mode if swiped up enough
           if (gesture.dy < -SWIPE_THRESHOLD_VERTICAL) {
             resetCard();
             setReadingMode(true);
@@ -293,6 +328,7 @@ export default function DeckFlashcards({
     outputRange: ['-10deg', '0deg', '10deg'],
     extrapolate: 'clamp',
   });
+
   if (!isReady) {
     return (
       <View style={styles.loadingContainer}>
@@ -301,7 +337,7 @@ export default function DeckFlashcards({
     );
   }
   
-  if (currentIndexRef.current >= DECK_CARDS.length) {
+  if (DECK_CARDS.length === 0) {
     return (
       <View style={styles.noMoreCards}>
         <Text style={styles.noMoreCardsText}>No more cards</Text>
@@ -309,7 +345,8 @@ export default function DeckFlashcards({
     );
   }
 
-  const card: CardData = DECK_CARDS[currentIndexRef.current];
+  // Always display the first card in the queue.
+  const card: CardData = DECK_CARDS[0];
   const animatedStyle = {
     transform: [...position.getTranslateTransform(), { rotate }],
   };
@@ -317,7 +354,7 @@ export default function DeckFlashcards({
   return (
     <View style={styles.deckContainer}>
       <Animated.View
-        key={currentIndexRef.current} // Force re-mount for each new card
+        key={card.key} // Use card key for remounting each new card.
         style={[styles.card, animatedStyle]}
         {...panResponder.panHandlers}
       >
@@ -409,7 +446,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#999',
   },
-  
   deckContainer: {
     flex: 1,
     alignItems: 'center',
