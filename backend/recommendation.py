@@ -10,7 +10,7 @@ def cosine_similarity(vec1, vec2):
 # --- Sample Stock Data ---
 # Each stock is represented as a dictionary.
 stocks = [
-    {"ticker": "AAPL", "popularity": 0.9, "industry": "Tech", "features": [1.0, 0.5, 0.3]},
+    {"ticker": "", "popularity": 0.9, "industry": "Tech", "features": [1.0, 0.5, 0.3]},
     {"ticker": "GOOGL", "popularity": 0.85, "industry": "Tech", "features": [1.0, 0.6, 0.2]},
     {"ticker": "TSLA", "popularity": 0.95, "industry": "Automotive", "features": [0.7, 0.2, 1.0]},
     {"ticker": "AMZN", "popularity": 0.8, "industry": "Retail", "features": [0.9, 0.4, 0.5]},

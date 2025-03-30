@@ -1,7 +1,7 @@
-// App.tsx (or app/_layout.tsx in Expo Router)
+// layout.tsx (or app/_layout.tsx in Expo Router)
 import React, { useState } from 'react';
 import { SafeAreaView, View, StyleSheet } from 'react-native';
-import DeckFlashcards, { CardData } from './DeckFlashcards';
+import DeckFlashcards from './DeckFlashcards';
 import PortfolioScreen from './PortfolioScreen';
 import InsightsFlashcard from './InsightsFlashcard';
 import WishListScreen from './WishListScreen';
@@ -9,15 +9,44 @@ import BottomNav from './BottomNav';
 import CameraScanner from './CameraScanner';
 import { WishItem } from './SwipeableWishCard';
 
-type TabName = 'home' | 'portfolio' | 'market' | 'wishlist' | 'camera';
+export type TabName = 'home' | 'portfolio' | 'market' | 'wishlist' | 'camera';
+
+// Type used by your swipeable deck cards
+export interface CardData {
+  key: string;
+  companyName: string;
+  subTitle: string;
+  price?: string;
+  priceChange?: string;
+}
+
+// Type for items stored in the wish list
+export interface WishListItem {
+  key: string;
+  title: string;
+  subtitle: string;
+  price?: string;
+  change?: string;
+  readingText?: string;
+}
+
+// Type for portfolio items
+export interface PortfolioItemType {
+  key: string;
+  title: string;
+  subtitle: string;
+  price: string;
+  change: string;
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [deckIndex, setDeckIndex] = useState(0);
   const [wishList, setWishList] = useState<WishItem[]>([]);
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItemType[]>([]);
   const [showInsights, setShowInsights] = useState(false);
 
-  // Called when a deck card is swiped right
+  // Called when a deck card is swiped right (adds to wish list)
   const handleSwipeRight = (card: CardData) => {
     console.log("handleSwipeRight called with card:", card);
     
@@ -44,53 +73,68 @@ export default function App() {
     });
   };
     
-  // Called when a wish card is swiped left in the WishListScreen
+  // Called when a wish card is swiped left in the WishListScreen (remove wish)
   const handleRemoveWish = (key: string) => {
-    setWishList(prev => prev.filter(item => item.key !== key));
+    setWishList((prev) => prev.filter((item) => item.key !== key));
   };
 
-  // Portfolio item to CardData adapter
-  const handlePortfolioSwipeRight = (item: { title: string; subtitle: string; price: string; change: string }) => {
-    // Convert portfolio item to CardData format
-    const cardData: CardData = {
-      key: item.subtitle,
-      companyName: item.title,
-      subTitle: item.subtitle,
-      price: item.price,
-      priceChange: item.change
-    };
-    handleSwipeRight(cardData);
+  // When a wish is marked in portfolio, add it to the portfolio and do NOT remove it from the wish list.
+  // Also ensure that the same stock (by title) is not added twice.
+  const handleMarkWish = (key: string) => {
+    const wish = wishList.find((item) => item.key === key);
+    if (wish) {
+      const alreadyInPortfolio = portfolioItems.find(
+        (portfolioItem) => portfolioItem.title === wish.title
+      );
+      if (!alreadyInPortfolio) {
+        const newPortfolioItem: PortfolioItemType = {
+          key: wish.key.replace('-wish', ''), // Optionally remove the suffix
+          title: wish.title,
+          subtitle: wish.subtitle,
+          price: wish.price || '',
+          change: wish.change || '',
+        };
+        setPortfolioItems((prev) => [...prev, newPortfolioItem]);
+        console.log("Marked in portfolio:", newPortfolioItem);
+      } else {
+        console.log("Stock already in portfolio:", wish.title);
+      }
+    }
   };
-
+  
   const renderContent = () => {
-    if (activeTab === 'camera') {
-      return <CameraScanner />;
-    }    
-    if (activeTab === 'home') {
-      return <DeckFlashcards 
-        deckIndex={deckIndex}
-        setDeckIndex={setDeckIndex}
-        onSwipeRight={handleSwipeRight}
-      />;
-    } else if (activeTab === 'portfolio') {
+  switch (activeTab) {
+    case 'home':
+      return (
+        <DeckFlashcards
+          deckIndex={deckIndex}
+          setDeckIndex={setDeckIndex}
+          onSwipeRight={handleSwipeRight}
+        />
+      );
+    case 'portfolio':
       if (showInsights) {
         return <InsightsFlashcard onCloseInsights={() => setShowInsights(false)} />;
       }
-      return (
-        <PortfolioScreen 
-          onReadInsights={() => setShowInsights(true)}
-          onSwipeRight={handlePortfolioSwipeRight}
-        />
-      );
-    } else if (activeTab === 'wishlist') {
-      return (
-        <WishListScreen 
-          wishList={wishList}
-          onRemoveWish={handleRemoveWish}
-        />
-      );
-    }
-  };
+      return <PortfolioScreen
+        portfolioItems={portfolioItems}
+        onReadInsights={() => setShowInsights(true)}
+      />;
+    case 'wishlist':
+      return <WishListScreen
+        wishList={wishList}
+        onRemoveWish={handleRemoveWish}
+        onMarkWish={handleMarkWish}
+      />;
+    case 'market':
+      return <CameraScanner />;
+    case 'camera':
+      return <CameraScanner />;
+    default:
+      return <CameraScanner />;
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.safeArea}>

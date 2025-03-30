@@ -1,14 +1,22 @@
 // src/PortfolioScreen.tsx
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-interface PortfolioScreenProps {
-  onReadInsights: () => void;
-  onSwipeRight: (item: { title: string; subtitle: string; price: string; change: string }) => void;
+export interface PortfolioItemType {
+  key: string;
+  title: string;
+  subtitle: string;
+  price: string;
+  change: string;
 }
 
-export default function PortfolioScreen({ onReadInsights, onSwipeRight }: PortfolioScreenProps) {
+interface PortfolioScreenProps {
+  portfolioItems: PortfolioItemType[];
+  onReadInsights: () => void;
+}
+
+export default function PortfolioScreen({ portfolioItems, onReadInsights }: PortfolioScreenProps) {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.container}>
@@ -25,52 +33,22 @@ export default function PortfolioScreen({ onReadInsights, onSwipeRight }: Portfo
         <View style={styles.scrollableContainer}>
           <ScrollView contentContainerStyle={styles.portfolioListContainer}>
             <Text style={styles.portfolioTitle}>Your Portfolio</Text>
-            <PortfolioItem
-              title="Apple Inc."
-              subtitle="AAPL"
-              price="₹2,509.75"
-              change="+1.97%"
-              onSwipeRight={onSwipeRight}
-            />
-            {/* You can add more PortfolioItems here */}
+            {portfolioItems.map((item) => (
+              <View key={item.key} style={styles.portfolioItem}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.portfolioItemTitle}>{item.title}</Text>
+                  <Text style={styles.portfolioItemSubtitle}>{item.subtitle}</Text>
+                </View>
+                <View style={styles.priceContainerRow}>
+                  <Text style={styles.priceText}>{item.price}</Text>
+                  <Text style={styles.changeText}>{item.change}</Text>
+                </View>
+              </View>
+            ))}
           </ScrollView>
         </View>
       </View>
     </GestureHandlerRootView>
-  );
-}
-
-interface PortfolioItemProps {
-  title: string;
-  subtitle: string;
-  price: string;
-  change: string;
-  onSwipeRight: (item: { title: string; subtitle: string; price: string; change: string }) => void;
-}
-
-function PortfolioItem({ title, subtitle, price, change, onSwipeRight }: PortfolioItemProps) {
-  return (
-    <Swipeable
-      onSwipeableRightOpen={() =>
-        onSwipeRight({ title, subtitle, price, change })
-      }
-      renderRightActions={() => (
-        <View style={styles.swipeAction}>
-          <Text style={styles.swipeActionText}>Add</Text>
-        </View>
-      )}
-    >
-      <View style={styles.portfolioItem}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.portfolioItemTitle}>{title}</Text>
-          <Text style={styles.portfolioItemSubtitle}>{subtitle}</Text>
-        </View>
-        <View style={styles.priceContainerRow}>
-          <Text style={styles.priceText}>{price}</Text>
-          <Text style={styles.changeText}>{change}</Text>
-        </View>
-      </View>
-    </Swipeable>
   );
 }
 
@@ -120,15 +98,6 @@ const styles = StyleSheet.create({
   priceContainerRow: { alignItems: 'flex-end', justifyContent: 'center' },
   priceText: { fontSize: 16, fontWeight: '500', color: '#333' },
   changeText: { fontSize: 12, color: 'green' },
-  swipeAction: { 
-    backgroundColor: '#4CAF50', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    width: 80, 
-    borderTopRightRadius: 16, 
-    borderBottomRightRadius: 16 
-  },
-  swipeActionText: { color: '#fff', fontWeight: 'bold' },
 });
 
 export { PortfolioScreen };

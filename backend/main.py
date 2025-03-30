@@ -7,7 +7,7 @@ import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
-
+import pandas as pd
 from fastapi import UploadFile, File
 from fastapi.responses import JSONResponse
 import base64
@@ -31,7 +31,9 @@ lunon_client = OpenAI(
     base_url="https://api.lunon.com/v1"
 )
 
-# Create FastAPI instance
+# Create FastAPI instanceimport pandas as pd
+import random
+import os 
 app = FastAPI()
 
 # Enable CORS as needed
@@ -43,6 +45,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+df = pd.read_csv("../stock_ticker.csv")
+tickers_list = df["Symbol"].tolist()
+print("Tickers loaded:", tickers_list)
 ####################
 # Helper Functions #
 ####################
@@ -68,16 +73,41 @@ def analyze_image_and_get_ticker(image_url: str) -> str:
     return ticker
 
 def transform_stock_to_deckcard(ticker: str) -> dict:
-    """Fetches stock data from Yahoo (via yfinance) and shapes it into a DeckCard format."""
+    import yfinance as yf
+    from fastapi import HTTPException
+
     stock = yf.Ticker(ticker)
     info = stock.info
 
     if "regularMarketPrice" not in info:
         raise HTTPException(status_code=404, detail=f"Ticker {ticker} not found or no data available.")
 
-    return {
+    # Prepare extra stats
+    profit_margin = f"{info.get('profitMargins', 0) * 100:.2f}%" if info.get('profitMargins') else "N/A"
+    operating_cash_flow = info.get('operatingCashflow')
+    operating_cash_flow_str = f"{operating_cash_flow / 1e9:.2f} B" if operating_cash_flow else "N/A"
+    free_cashflow = info.get('freeCashflow')
+    free_cashflow_str = f"{free_cashflow / 1e9:.2f} B" if free_cashflow else "N/A"
+
+    # Summaries
+    long_summary = info.get("longBusinessSummary", "")
+    sentences = [s.strip() for s in long_summary.split('.') if s.strip()]
+
+    if len(sentences) >= 2:
+        first_card_text = ". ".join(sentences[:2]) + "."
+    elif sentences:
+        first_card_text = sentences[0] + "."
+    else:
+        first_card_text = "No summary available."
+
+    second_card_text = sentences[2] + "." if len(sentences) >= 3 else "No additional summary available."
+
+    stock_name = info.get("shortName", info.get("longName", "Stock"))
+
+    # Combine everything into ONE dictionary
+    deck_card = {
         "key": info.get("symbol"),
-        "companyName": info.get("shortName", info.get("longName")),
+        "companyName": stock_name,
         "subTitle": info.get("symbol"),
         "price": str(info.get("regularMarketPrice", "None")),
         "priceChange": f"{info.get('regularMarketChange', 'None')} ({info.get('regularMarketChangePercent', 'None')}%)",
@@ -86,13 +116,25 @@ def transform_stock_to_deckcard(ticker: str) -> dict:
             {"label": "P/E",     "value": str(info.get("trailingPE", "None"))},
             {"label": "Mkt Cap", "value": str(info.get("marketCap", "None"))},
         ],
-        "additionalStats": [],
+        "additionalStats": [
+            f"Profit Margin: {profit_margin}",
+            f"Operating Cash Flow: {operating_cash_flow_str}",
+            f"Free Cash Flow: {free_cashflow_str}",
+        ],
         "tabs": ["All", "Details"],
         "contentCards": [
-            {"title": "About", "text": info.get("longBusinessSummary", "None")},
-            {"title": "Chart", "text": "Chart placeholder"},
+            {
+                "title": f"About {stock_name}",
+                "text": first_card_text
+            },
+            {
+                "title": "More Info",
+                "text": second_card_text
+            }
         ],
     }
+
+    return deck_card
 
 def get_stock_snapshot(ticker: str) -> dict:
     """Fetches stock snapshot from Nasdaq API."""
@@ -220,6 +262,16 @@ async def get_stock(ticker: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# To run: uvicorn main:app --reload
 
-# Launch command:
-# uvicorn main:app --host 0.0.0.0 --reload
+@app.get("/stock_recommendation")
+async def stock_recommendation():
+    max_attempts = 100
+    for _ in range(max_attempts):
+        ticker = random.choice(tickers_list)
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        # Check that the stock has a regularMarketPrice (a sign it exists on yfinance)
+        if info.get("regularMarketPrice") is not None:
+            return {"ticker": ticker}
+    raise HTTPException(status_code=404, detail="No valid ticker found after several attempts.")
