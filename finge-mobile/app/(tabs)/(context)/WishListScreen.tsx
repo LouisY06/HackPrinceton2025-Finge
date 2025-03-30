@@ -1,4 +1,4 @@
- // WishListScreen.tsx
+// WishListScreen.tsx
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import SwipeableWishCard, { WishItem } from './SwipeableWishCard';
@@ -6,17 +6,27 @@ import SwipeableWishCard, { WishItem } from './SwipeableWishCard';
 interface WishListScreenProps {
   wishList: WishItem[];
   onRemoveWish: (key: string) => void;
+  onMarkWish: (key: string) => void;
 }
 
-export default function WishListScreen({ wishList, onRemoveWish }: WishListScreenProps) {
+export default function WishListScreen({ wishList, onRemoveWish, onMarkWish }: WishListScreenProps) {
   return (
     <View style={styles.wishListContainer}>
       <Text style={styles.wishListTitle}>Wish List</Text>
-      <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
-        {wishList.map((item) => (
-          <SwipeableWishCard key={item.key} item={item} onRemove={onRemoveWish} />
-        ))}
-      </ScrollView>
+      {wishList.length === 0 ? (
+        <Text style={styles.emptyText}>Add more stocks</Text>
+      ) : (
+        <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
+          {wishList.map((item) => (
+            <SwipeableWishCard 
+              key={item.key} 
+              item={item} 
+              onRemove={onRemoveWish} 
+              onMark={onMarkWish} 
+            />
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -35,5 +45,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    marginLeft: 16,
   },
 });

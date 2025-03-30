@@ -28,12 +28,22 @@ export interface WishListItem {
   readingText?: string;
 }
 
+// This is the type for portfolio items
+export interface PortfolioItemType {
+  key: string;
+  title: string;
+  subtitle: string;
+  price: string;
+  change: string;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [deckIndex, setDeckIndex] = useState(0);
   const [wishList, setWishList] = useState<WishListItem[]>([]);
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItemType[]>([]);
 
-  // Called when a deck card is swiped right
+  // Called when a deck card is swiped right (adds to wish list)
   const handleSwipeRight = (card: CardData) => {
     console.log("handleSwipeRight called with card:", card);
     
@@ -62,7 +72,23 @@ export default function App() {
     
   // Called when a wish card is swiped left in the WishListScreen
   const handleRemoveWish = (key: string) => {
-    setWishList(wishList.filter((item) => item.key !== key));
+    setWishList((prev) => prev.filter((item) => item.key !== key));
+  };
+
+  // When a wish is marked in portfolio, add it to the portfolio and do NOT remove it from the wish list
+  const handleMarkWish = (key: string) => {
+    const wish = wishList.find((item) => item.key === key);
+    if (wish) {
+      const newPortfolioItem: PortfolioItemType = {
+        key: wish.key.replace('-wish', ''), // Optionally remove the suffix
+        title: wish.title,
+        subtitle: wish.subtitle,
+        price: wish.price || '',
+        change: wish.change || '',
+      };
+      setPortfolioItems((prev) => [...prev, newPortfolioItem]);
+      console.log("Marked in portfolio:", newPortfolioItem);
+    }
   };
 
   const renderContent = () => {
@@ -78,11 +104,9 @@ export default function App() {
       case 'portfolio':
         return (
           <PortfolioScreen
+            portfolioItems={portfolioItems}
             onReadInsights={() => {
               // Implement insights reading logic here
-            }}
-            onSwipeRight={(card) => {
-              // Implement portfolio swipe logic here
             }}
           />
         );
@@ -90,7 +114,13 @@ export default function App() {
         // The market tab is now a Camera tab.
         return <CameraScreen />;
       case 'wishlist':
-        return <WishListScreen wishList={wishList} onRemoveWish={handleRemoveWish} />;
+        return (
+          <WishListScreen
+            wishList={wishList}
+            onRemoveWish={handleRemoveWish}
+            onMarkWish={handleMarkWish}
+          />
+        );
       default:
         return <CameraScreen />;
     }
