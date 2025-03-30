@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   wishListTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '600',
     marginBottom: 16,
   },
@@ -59,5 +59,8 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '100%',
     minHeight: 300,
+    marginTop: 40, // Added margin to move the box down
   },
 });
+
+export { WishListScreen };
