@@ -90,9 +90,9 @@ def transform_stock_to_deckcard(ticker: str) -> dict:
     # Prepare extra stats
     profit_margin = f"{info.get('profitMargins', 0) * 100:.2f}%" if info.get('profitMargins') else "N/A"
     operating_cash_flow = info.get('operatingCashflow')
-    operating_cash_flow_str = f"{operating_cash_flow / 1e9:.2f} B" if operating_cash_flow else "N/A"
+    operating_cash_flow_str = f"{operating_cash_flow/100 / 1e9:.2f} B" if operating_cash_flow else "N/A"
     free_cashflow = info.get('freeCashflow')
-    free_cashflow_str = f"{free_cashflow / 1e9:.2f} B" if free_cashflow else "N/A"
+    free_cashflow_str = f"{free_cashflow/100 / 1e9:.2f} B" if free_cashflow else "N/A"
 
     # Summaries
     long_summary = info.get("longBusinessSummary", "")
@@ -111,33 +111,37 @@ def transform_stock_to_deckcard(ticker: str) -> dict:
 
     # Combine everything into ONE dictionary
     deck_card = {
-        "key": info.get("symbol"),
-        "companyName": stock_name,
-        "subTitle": info.get("symbol"),
-        "price": str(info.get("regularMarketPrice", "None")),
-        "priceChange": f"{info.get('regularMarketChange', 'None')} ({info.get('regularMarketChangePercent', 'None')}%)",
-        "stats": [
-            {"label": "Vol",     "value": str(info.get("regularMarketVolume", "None"))},
-            {"label": "P/E",     "value": str(info.get("trailingPE", "None"))},
-            {"label": "Mkt Cap", "value": str(info.get("marketCap", "None"))},
-        ],
-        "additionalStats": [
-            f"Profit Margin: {profit_margin}",
-            f"Operating Cash Flow: {operating_cash_flow_str}",
-            f"Free Cash Flow: {free_cashflow_str}",
-        ],
-        "tabs": ["All", "Details"],
-        "contentCards": [
-            {
-                "title": f"About {stock_name}",
-                "text": first_card_text
-            },
-            {
-                "title": "More Info",
-                "text": second_card_text
-            }
-        ],
-    }
+    "key": info.get("symbol"),
+    "companyName": stock_name,
+    "subTitle": info.get("symbol"),
+    "price": f"{info.get('regularMarketPrice'):,.2f}" if info.get("regularMarketPrice") is not None else "None",
+    "priceChange": (
+        f"{info.get('regularMarketChange'):,.2f} "
+        f"({info.get('regularMarketChangePercent'):,.2f}%)"
+    ) if (info.get("regularMarketChange") is not None and info.get("regularMarketChangePercent") is not None) else "None",
+    "stats": [
+        {"label": "Vol", "value": f"{info.get('regularMarketVolume'):,.0f}" if info.get("regularMarketVolume") is not None else "None"},
+        {"label": "P/E", "value": f"{info.get('trailingPE'):,.2f}" if info.get("trailingPE") is not None else "None"},
+        {"label": "Mkt Cap", 
+         "value": f"{(info.get('marketCap') / 1e9):,.2f} B" if info.get("marketCap") is not None else "None"},
+    ],
+    "additionalStats": [
+        f"Profit Margin: {profit_margin}",
+        f"Operating Cash Flow: {operating_cash_flow_str}",
+        f"Free Cash Flow: {free_cashflow_str}",
+    ],
+    "tabs": ["All", "Details"],
+    "contentCards": [
+        {
+            "title": f"About {stock_name}",
+            "text": first_card_text
+        },
+        {
+            "title": "More Info",
+            "text": second_card_text
+        }
+    ],
+}
 
     return deck_card
 
