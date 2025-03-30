@@ -1,5 +1,5 @@
 // DeckFlashcards.tsx
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,14 @@ import {
   StyleSheet,
   Dimensions,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const SWIPE_THRESHOLD_HORIZONTAL = 0.05 * SCREEN_WIDTH;
+const SWIPE_THRESHOLD_HORIZONTAL = 0.25 * SCREEN_WIDTH;
 const SWIPE_THRESHOLD_VERTICAL = 150;
 
-// Extended interface to hold the extra fields
 interface CardData {
   key: string;
   companyName: string;
@@ -33,7 +34,6 @@ interface DeckFlashcardsProps {
   onSwipeRight: (card: CardData) => void;
 }
 
-// Updated data to match the style in your screenshot
 const DECK_CARDS: CardData[] = [
   {
     key: 'nvidia',
@@ -119,50 +119,106 @@ export default function DeckFlashcards({
   onSwipeRight,
 }: DeckFlashcardsProps) {
   const [readingMode, setReadingMode] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const position = useRef(new Animated.ValueXY()).current;
+
+  // Reset the animated value when deckIndex changes
+  useEffect(() => {
+    position.setValue({ x: 0, y: 0 });
+  }, [deckIndex]);
 
   const resetCard = () => {
     position.setValue({ x: 0, y: 0 });
   };
 
+  // Button-triggered swipe right
+  const handleButtonSwipeRight = () => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    onSwipeRight(DECK_CARDS[deckIndex]);
+    Animated.timing(position, {
+      toValue: { x: SCREEN_WIDTH, y: 0 },
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      resetCard();
+      setDeckIndex(deckIndex + 1);
+      setIsAnimating(false);
+    });
+  };
+
+  // Button-triggered swipe left
+  const handleButtonSwipeLeft = () => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    Animated.timing(position, {
+      toValue: { x: -SCREEN_WIDTH, y: 0 },
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      resetCard();
+      setDeckIndex(deckIndex + 1);
+      setIsAnimating(false);
+    });
+  };
+
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !readingMode,
+      onStartShouldSetPanResponder: () => !readingMode && !isAnimating,
       onPanResponderMove: (_, gesture) => {
         position.setValue({ x: gesture.dx, y: gesture.dy });
       },
       onPanResponderRelease: (_, gesture) => {
-        if (gesture.dy < -SWIPE_THRESHOLD_VERTICAL) {
-          // Swipe up (optional): toggle reading mode if desired
-          resetCard();
-          setReadingMode(true);
-        } else if (gesture.dx > SWIPE_THRESHOLD_HORIZONTAL) {
-          // Swipe right: add to wishlist then advance deck
-          onSwipeRight(DECK_CARDS[deckIndex]);
-          Animated.timing(position, {
-            toValue: { x: SCREEN_WIDTH, y: gesture.dy },
-            duration: 250,
-            useNativeDriver: true,
-          }).start(() => {
-            resetCard();
-            setDeckIndex(deckIndex + 1);
-          });
-        } else if (gesture.dx < -SWIPE_THRESHOLD_HORIZONTAL) {
-          // Swipe left: advance deck without saving
-          Animated.timing(position, {
-            toValue: { x: -SCREEN_WIDTH, y: gesture.dy },
-            duration: 250,
-            useNativeDriver: true,
-          }).start(() => {
-            resetCard();
-            setDeckIndex(deckIndex + 1);
-          });
+        // Check if horizontal movement is dominant
+        if (Math.abs(gesture.dx) > Math.abs(gesture.dy)) {
+          if (gesture.dx > SWIPE_THRESHOLD_HORIZONTAL) {
+            setIsAnimating(true);
+            onSwipeRight(DECK_CARDS[deckIndex]);
+            Animated.timing(position, {
+              toValue: { x: SCREEN_WIDTH, y: gesture.dy },
+              duration: 300,
+              useNativeDriver: true,
+            }).start(() => {
+              resetCard();
+              setDeckIndex(deckIndex + 1);
+              setIsAnimating(false);
+            });
+          } else if (gesture.dx < -SWIPE_THRESHOLD_HORIZONTAL) {
+            setIsAnimating(true);
+            Animated.timing(position, {
+              toValue: { x: -SCREEN_WIDTH, y: gesture.dy },
+              duration: 300,
+              useNativeDriver: true,
+            }).start(() => {
+              resetCard();
+              setDeckIndex(deckIndex + 1);
+              setIsAnimating(false);
+            });
+          } else {
+            Animated.spring(position, {
+              toValue: { x: 0, y: 0 },
+              friction: 6,
+              tension: 100,
+              useNativeDriver: true,
+            }).start();
+          }
         } else {
+          // If vertical movement is dominant, snap back
           Animated.spring(position, {
             toValue: { x: 0, y: 0 },
+            friction: 6,
+            tension: 100,
             useNativeDriver: true,
           }).start();
         }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(position, {
+          toValue: { x: 0, y: 0 },
+          friction: 6,
+          tension: 100,
+          useNativeDriver: true,
+        }).start();
       },
     })
   ).current;
@@ -173,7 +229,6 @@ export default function DeckFlashcards({
     extrapolate: 'clamp',
   });
 
-  // If we've reached the end of the deck, show a placeholder
   if (deckIndex >= DECK_CARDS.length) {
     return (
       <View style={styles.noMoreCards}>
@@ -187,6 +242,7 @@ export default function DeckFlashcards({
   return (
     <View style={styles.deckContainer}>
       <Animated.View
+        key={deckIndex} // Force re-mount for each new card
         style={[
           styles.card,
           { transform: [...position.getTranslateTransform(), { rotate }] },
@@ -252,10 +308,19 @@ export default function DeckFlashcards({
             </View>
           )}
 
-          {/* Hint (for reading mode) */}
+          {/* Hint for reading mode */}
           <Text style={styles.swipeHint}>Swipe up for full article reading mode</Text>
         </ScrollView>
       </Animated.View>
+      {/* Buttons for swipe actions */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity onPress={handleButtonSwipeLeft} style={styles.swipeButton}>
+          <Ionicons name="close-circle" size={48} color="#ff4d4d" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleButtonSwipeRight} style={styles.swipeButton}>
+          <Ionicons name="checkmark-circle" size={48} color="#4caf50" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -286,8 +351,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#888',
   },
-
-  // Header
   companyName: {
     fontSize: 20,
     fontWeight: '600',
@@ -298,8 +361,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 8,
   },
-
-  // Price
   priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -314,8 +375,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'green',
   },
-
-  // Stats
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -334,8 +393,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
-
-  // Additional Stats
   additionalStats: {
     marginBottom: 16,
   },
@@ -344,8 +401,6 @@ const styles = StyleSheet.create({
     color: '#444',
     marginBottom: 2,
   },
-
-  // Tabs
   tabsRow: {
     flexDirection: 'row',
     marginBottom: 12,
@@ -361,8 +416,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#444',
   },
-
-  // Content Cards
   contentCard: {
     backgroundColor: '#f7f7f7',
     borderRadius: 8,
@@ -378,12 +431,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#444',
   },
-
-  // Hint
   swipeHint: {
     fontSize: 12,
     color: '#888',
     textAlign: 'center',
     marginTop: 10,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    marginTop: 20,
+  },
+  swipeButton: {
+    marginHorizontal: 20,
   },
 });
