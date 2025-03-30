@@ -1,12 +1,12 @@
 // App.tsx (or app/_layout.tsx in Expo Router)
 import React, { useState } from 'react';
 import { SafeAreaView, View, StyleSheet } from 'react-native';
-import DeckFlashcards from './(context)/';
-import PortfolioScreen from './(context)/PortfolioScreen';
-import InsightsFlashcard from './(context)/InsightsFlashcard';
-import WishListScreen from './(context)/WishListScreen';
-import PlaceholderScreen from './(context)/PlaceholderScreen';
-import BottomNav from './(context)/BottomNav';
+import DeckFlashcards from '.';
+import PortfolioScreen from './PortfolioScreen';
+import InsightsFlashcard from './InsightsFlashcard';
+import WishListScreen from './WishListScreen';
+import PlaceholderScreen from './PlaceholderScreen';
+import BottomNav from './BottomNav';
 
 type TabName = 'home' | 'portfolio' | 'market' | 'wishlist';
 
