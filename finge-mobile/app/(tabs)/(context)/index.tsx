@@ -16,8 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { DeckCard } from './data'; // DeckCard interface from data.ts
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const SWIPE_THRESHOLD_HORIZONTAL = 0.25 * SCREEN_WIDTH;
-const SWIPE_THRESHOLD_VERTICAL = 150;
+const SWIPE_THRESHOLD_HORIZONTAL = 0.10 * SCREEN_WIDTH;
+const SWIPE_THRESHOLD_VERTICAL = 100;
 
 // Define five demo tickers.
 const demoTickers = ['AAPL', 'MSFT', 'AMZN', 'TSLA', 'GOOGL'];
