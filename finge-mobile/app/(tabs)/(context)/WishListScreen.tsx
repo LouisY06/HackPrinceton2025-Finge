@@ -1,66 +1,22 @@
-// src/WishListScreen.tsx
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { WISH_LIST, WishItem } from './data';
+ // WishListScreen.tsx
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import SwipeableWishCard, { WishItem } from './SwipeableWishCard';
 
-export default function WishListScreen() {
-  const [wishReadingMode, setWishReadingMode] = useState<boolean>(false);
-  const [selectedWish, setSelectedWish] = useState<WishItem | null>(null);
+interface WishListScreenProps {
+  wishList: WishItem[];
+  onRemoveWish: (key: string) => void;
+}
 
-  const handlePress = (item: WishItem) => {
-    setSelectedWish(item);
-    setWishReadingMode(true);
-  };
-
+export default function WishListScreen({ wishList, onRemoveWish }: WishListScreenProps) {
   return (
     <View style={styles.wishListContainer}>
       <Text style={styles.wishListTitle}>Wish List</Text>
       <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
-        {WISH_LIST.map((item) => (
-          <TouchableOpacity
-            key={item.key}
-            style={styles.wishCard}
-            onPress={() => handlePress(item)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="star-outline" size={20} color="#888" style={styles.wishStarIcon} />
-            <Text style={styles.wishCompanyTitle}>{item.name}</Text>
-            <Text style={styles.wishSubtitle}>{item.subTitle}</Text>
-            <View style={styles.wishStatsRow}>
-              <Text style={styles.wishStatsText}>Vol: {item.vol}</Text>
-              <Text style={styles.wishStatsText}>P/E: {item.pe}</Text>
-              <Text style={styles.wishStatsText}>Mkt Cap: {item.mktCap}</Text>
-            </View>
-            <View style={styles.wishStatsRow}>
-              <Text style={styles.wishStatsText}>Yield: {item.yield}</Text>
-              <Text style={styles.wishStatsText}>Beta: {item.beta}</Text>
-              <Text style={styles.wishStatsText}>EPS: {item.eps}</Text>
-            </View>
-            <View style={styles.lineChartPlaceholder}>
-              <Text style={{ color: '#999' }}>Line Chart</Text>
-            </View>
-          </TouchableOpacity>
+        {wishList.map((item) => (
+          <SwipeableWishCard key={item.key} item={item} onRemove={onRemoveWish} />
         ))}
       </ScrollView>
-      {wishReadingMode && selectedWish && (
-        <View style={styles.readingModeContainer}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => setWishReadingMode(false)}>
-            <Text style={styles.closeButtonText}>X</Text>
-          </TouchableOpacity>
-          <ScrollView contentContainerStyle={styles.readingContentContainer}>
-            <Text style={styles.articleTitle}>{selectedWish.name}</Text>
-            <Text style={styles.articleContent}>{selectedWish.readingText}</Text>
-          </ScrollView>
-        </View>
-      )}
     </View>
   );
 }
@@ -74,7 +30,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     padding: 16,
     position: 'relative',
-    boxShadow: '0px 1px 3px rgba(0,0,0,0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
     elevation: 3,
   },
   wishStarIcon: { position: 'absolute', top: 12, right: 12 },
