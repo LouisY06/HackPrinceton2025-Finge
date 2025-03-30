@@ -13,6 +13,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
+
 def transform_stock_to_deckcard(ticker: str) -> dict:
     # Use yfinance to fetch stock data
     stock = yf.Ticker(ticker)
@@ -44,6 +47,13 @@ def transform_stock_to_deckcard(ticker: str) -> dict:
     }
     return deck_card
 
+'''
+# image -> ticker
+# POST ticker database
+# gets all the tickers for the database
+'''
+
+#TAKES IN A TICKER, RETURNS INFO
 @app.get("/stock/{ticker}")
 async def get_stock(ticker: str):
     try:
