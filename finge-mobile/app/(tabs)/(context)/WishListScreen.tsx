@@ -71,5 +71,8 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '100%',
     minHeight: 300,
+    marginTop: 40, // Added margin to move the box down
   },
 });
+
+export { WishListScreen };

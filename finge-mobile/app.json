@@ -4,7 +4,7 @@
     "slug": "finge-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/fingelogo.png",
+    "icon": "./assets/images/whitefinge.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/fingelogo.png",
+        "foregroundImage": "./assets/images/whitefinge.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.lyu06.fingemobile"
@@ -22,14 +22,14 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/fingelogo.png"
+      "favicon": "./assets/images/whitefinge.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/fingelogo.png",
+          "image": "./assets/images/whitefinge.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
