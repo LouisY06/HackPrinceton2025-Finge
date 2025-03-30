@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+const useAPI = true;
+
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD_HORIZONTAL = 0.25 * SCREEN_WIDTH;
 const SWIPE_THRESHOLD_VERTICAL = 150;
@@ -37,7 +39,7 @@ interface DeckFlashcardsProps {
   onSwipeRight: (card: CardData) => void;
 }
 
-const DECK_CARDS: CardData[] = [
+let DECK_CARDS: CardData[] = [
   {
     key: 'nvidia',
     companyName: 'Nvidia Corp.',
@@ -115,6 +117,7 @@ const DECK_CARDS: CardData[] = [
     ],
   },
 ];
+const demoTickers = ['AAPL', 'MSFT', 'AMZN', 'TSLA', 'GOOGL'];
 
 export default function DeckFlashcards({
   deckIndex,
@@ -123,15 +126,43 @@ export default function DeckFlashcards({
 }: DeckFlashcardsProps) {
   const [readingMode, setReadingMode] = useState<boolean>(false);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
+  const [isReady, setIsReady] = useState(false);
   const position = useRef(new Animated.ValueXY()).current;
   
   // Use a ref for synchronous index tracking
   const currentIndexRef = useRef(deckIndex);
   useEffect(() => {
-    currentIndexRef.current = deckIndex;
-    position.setValue({ x: 0, y: 0 });
-  }, [deckIndex, position]);
-
+    if (useAPI) {
+      const fetchDeckCards = async () => {
+        try {
+          const baseURL = 'http://10.29.252.198:8000/stock/'; // Your API endpoint
+          const fetchedCards: CardData[] = await Promise.all(
+            demoTickers.map(async (ticker) => {
+              const response = await fetch(`${baseURL}${ticker}`);
+              if (!response.ok) {
+                throw new Error(`Failed to fetch data for ${ticker}`);
+              }
+              const data = await response.json();
+              return data; // Assumes API returns data in the same format as DECK_CARDS.
+            })
+          );
+          // Update DECK_CARDS in place:
+          DECK_CARDS.length = 0;
+          DECK_CARDS.push(...fetchedCards);
+          setIsReady(true);  // Mark as ready after fetching.
+        } catch (error) {
+          console.error('Error fetching deck cards from API:', error);
+          // Fallback to demo data:
+          setIsReady(true);
+        }
+      };
+      fetchDeckCards();
+    } else {
+      // If not using API, mark as ready immediately.
+      setIsReady(true);
+    }
+  }, []);
+    
   // Always reset the card position
   const resetCard = () => {
     position.setValue({ x: 0, y: 0 });
@@ -262,7 +293,14 @@ export default function DeckFlashcards({
     outputRange: ['-10deg', '0deg', '10deg'],
     extrapolate: 'clamp',
   });
-
+  if (!isReady) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading deck cards...</Text>
+      </View>
+    );
+  }
+  
   if (currentIndexRef.current >= DECK_CARDS.length) {
     return (
       <View style={styles.noMoreCards}>
@@ -362,6 +400,16 @@ export default function DeckFlashcards({
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#999',
+  },
+  
   deckContainer: {
     flex: 1,
     alignItems: 'center',

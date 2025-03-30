@@ -15,34 +15,66 @@ app.add_middleware(
 
 
 
-
 def transform_stock_to_deckcard(ticker: str) -> dict:
-    # Use yfinance to fetch stock data
+    import yfinance as yf
+    from fastapi import HTTPException
+
     stock = yf.Ticker(ticker)
     info = stock.info
 
-    # Check required field; if missing, raise an error
     if "regularMarketPrice" not in info:
         raise HTTPException(status_code=404, detail=f"Ticker {ticker} not found or no data available.")
 
-    # Build a DeckCard-format dictionary.
+    # Format profit margin (if provided as a fraction)
+    profit_margin = f"{info.get('profitMargins', 0) * 100:.2f}%" if info.get("profitMargins") is not None else "N/A"
+
+    # Format operating cash flow (assume raw number, convert to billions)
+    operating_cash_flow = info.get("operatingCashflow")
+    operating_cash_flow_str = f"{operating_cash_flow / 1e9:.2f} B" if operating_cash_flow is not None else "N/A"
+
+    # Format free cash flow using freeCashflow field
+    free_cashflow = info.get("freeCashflow")
+    free_cashflow_str = f"{free_cashflow / 1e9:.2f} B" if free_cashflow is not None else "N/A"
+
+    # Extract sentences from longBusinessSummary.
+    long_summary = info.get("longBusinessSummary", "")
+    # Split by period and filter out any empty sentences.
+    sentences = [s.strip() for s in long_summary.split('.') if s.strip()]
+    
+    # First content card: first two sentences.
+    if len(sentences) >= 2:
+        first_card_text = ". ".join(sentences[:2]) + "."
+    elif sentences:
+        first_card_text = sentences[0] + "."
+    else:
+        first_card_text = "No summary available."
+    
+    # Second content card: third sentence if exists.
+    second_card_text = sentences[2] + "." if len(sentences) >= 3 else "No additional summary available."
+
+    # Use the stock name for content card titles.
+    stock_name = info.get("shortName", info.get("longName", "Stock"))
+
     deck_card = {
-        "key": info.get("symbol", None),
-        "companyName": info.get("shortName", info.get("longName", None)),
-        "subTitle": info.get("symbol", None),
+        "key": info.get("symbol"),
+        "companyName": stock_name,
+        "subTitle": info.get("symbol"),
         "price": str(info.get("regularMarketPrice", "None")),
-        # Combine change and change percent for display.
         "priceChange": f"{info.get('regularMarketChange', 'None')} ({info.get('regularMarketChangePercent', 'None')}%)",
         "stats": [
-            { "label": "Vol", "value": str(info.get("regularMarketVolume", "None")) },
-            { "label": "P/E", "value": str(info.get("trailingPE", "None")) },
-            { "label": "Mkt Cap", "value": str(info.get("marketCap", "None")) },
+            {"label": "Vol", "value": str(info.get("regularMarketVolume", "None"))},
+            {"label": "P/E", "value": str(info.get("trailingPE", "None"))},
+            {"label": "Mkt Cap", "value": str(info.get("marketCap", "None"))},
         ],
-        "additionalStats": [],
+        "additionalStats": [
+            f"Profit Margin: {profit_margin}",
+            f"Operating Cash Flow: {operating_cash_flow_str}",
+            f"Free Cash Flow: {free_cashflow_str}",
+        ],
         "tabs": ["All", "Details"],
         "contentCards": [
-            { "title": "About", "text": info.get("longBusinessSummary", "None") },
-            { "title": "Chart", "text": "Chart placeholder" },
+            {"title": stock_name, "text": first_card_text},
+            {"title": stock_name, "text": second_card_text},
         ],
     }
     return deck_card

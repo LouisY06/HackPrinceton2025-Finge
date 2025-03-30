@@ -1,4 +1,4 @@
-// App.tsx
+// layout.tsx
 import React, { useState } from 'react';
 import { SafeAreaView, View, StyleSheet } from 'react-native';
 import DeckFlashcards from './DeckFlashcards';
@@ -9,7 +9,7 @@ import BottomNav from './BottomNav';
 
 export type TabName = 'home' | 'portfolio' | 'market' | 'wishlist';
 
-// This is the type used by your swipeable deck cards
+// Type used by your swipeable deck cards
 export interface CardData {
   key: string;
   companyName: string;
@@ -18,7 +18,7 @@ export interface CardData {
   priceChange?: string;
 }
 
-// This is the type for items stored in the wish list
+// Type for items stored in the wish list
 export interface WishListItem {
   key: string;
   title: string;
@@ -28,7 +28,7 @@ export interface WishListItem {
   readingText?: string;
 }
 
-// This is the type for portfolio items
+// Type for portfolio items
 export interface PortfolioItemType {
   key: string;
   title: string;
@@ -70,27 +70,35 @@ export default function App() {
     });
   };
     
-  // Called when a wish card is swiped left in the WishListScreen
+  // Called when a wish card is swiped left in the WishListScreen (remove wish)
   const handleRemoveWish = (key: string) => {
     setWishList((prev) => prev.filter((item) => item.key !== key));
   };
 
-  // When a wish is marked in portfolio, add it to the portfolio and do NOT remove it from the wish list
+  // When a wish is marked in portfolio, add it to the portfolio and do NOT remove it from the wish list.
+  // Also ensure that the same stock (by title) is not added twice.
   const handleMarkWish = (key: string) => {
     const wish = wishList.find((item) => item.key === key);
     if (wish) {
-      const newPortfolioItem: PortfolioItemType = {
-        key: wish.key.replace('-wish', ''), // Optionally remove the suffix
-        title: wish.title,
-        subtitle: wish.subtitle,
-        price: wish.price || '',
-        change: wish.change || '',
-      };
-      setPortfolioItems((prev) => [...prev, newPortfolioItem]);
-      console.log("Marked in portfolio:", newPortfolioItem);
+      const alreadyInPortfolio = portfolioItems.find(
+        (portfolioItem) => portfolioItem.title === wish.title
+      );
+      if (!alreadyInPortfolio) {
+        const newPortfolioItem: PortfolioItemType = {
+          key: wish.key.replace('-wish', ''), // Optionally remove the suffix
+          title: wish.title,
+          subtitle: wish.subtitle,
+          price: wish.price || '',
+          change: wish.change || '',
+        };
+        setPortfolioItems((prev) => [...prev, newPortfolioItem]);
+        console.log("Marked in portfolio:", newPortfolioItem);
+      } else {
+        console.log("Stock already in portfolio:", wish.title);
+      }
     }
   };
-
+  
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
