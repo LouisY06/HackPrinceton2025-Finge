@@ -36,8 +36,8 @@ export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
         onPress={() => setActiveTab('portfolio')}
       />
       <NavItem
-        icon="trending-up-outline"
-        label="Market"
+        icon="camera-outline"
+        label="Camera"
         isActive={activeTab === 'market'}
         onPress={() => setActiveTab('market')}
       />

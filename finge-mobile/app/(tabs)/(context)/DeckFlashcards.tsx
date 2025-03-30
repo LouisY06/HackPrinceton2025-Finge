@@ -431,9 +431,17 @@ export default function DeckFlashcards({
             <Text style={styles.closeButtonText}>X</Text>
           </TouchableOpacity>
           <ScrollView contentContainerStyle={styles.readingContentContainer}>
-            <Text style={styles.articleTitle}>{card.companyName} Full Article</Text>
+            <Text style={styles.articleTitle}>{card.companyName} (AAPL) Stock Analysis and Its Role in a Personal Portfolio</Text>
             <Text style={styles.articleContent}>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, nisl nec tincidunt lacinia, nunc est laoreet dolor, ac convallis nulla massa vitae turpis.
+            Apple Inc. has long been considered one of the most influential and valuable companies globally, driven by its innovative product lines, strong brand loyalty, and consistent financial performance. As of recent years, Apple has continued to maintain its position as a market leader through sustained revenue growth, steady cash flow, and a strong balance sheet, even amidst periods of market uncertainty. These characteristics make Apple a frequent candidate for inclusion in personal investment portfolios.
+
+From a fundamentals perspective, Apple’s business is well-diversified across products and services. While flagship products like the iPhone remain central to its revenue, the company has significantly expanded its services segment, including Apple Music, iCloud, and Apple Pay. This transition not only supports recurring revenue streams but also reduces dependency on hardware sales alone. Furthermore, Apple’s ecosystem strategy fosters customer retention and cross-product integration, which adds to its competitive advantage.
+
+Apple’s financial strength is also reflected in its history of stable dividend payments and regular share buybacks, which provide additional value to shareholders. The company’s ability to return capital while still investing in research, development, and strategic acquisitions signals financial discipline and long-term vision. Moreover, Apple maintains one of the largest cash reserves among publicly listed companies, offering it flexibility during economic downturns.
+
+When considering Apple’s potential role in a personal stock portfolio, it serves well as a core holding due to its combination of growth and stability. Apple is often viewed as a “blue-chip” stock — a company with a reputation for quality and reliability. Its inclusion can help anchor a portfolio, offering a degree of protection during volatile markets while still contributing to capital appreciation over time. However, investors should also be aware of certain risks, such as reliance on global supply chains, regulatory challenges, and the competitive nature of the technology sector.
+
+For long-term investors, Apple offers a balanced opportunity. Its consistent performance, coupled with its potential for innovation and expansion into areas such as augmented reality, artificial intelligence, and financial services, could drive future growth. While no investment is without risk, Apple’s track record and financial resilience make it a reasonable and potentially rewarding addition to a diversified personal portfolio.
             </Text>
           </ScrollView>
         </View>

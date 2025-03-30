@@ -3,12 +3,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  ScrollView,
-  Dimensions,
   Animated,
   PanResponder,
+  StyleSheet,
+  Dimensions,
+  ScrollView,
   TouchableOpacity,
+  Modal,
   GestureResponderEvent,
   PanResponderGestureState,
 } from 'react-native';
@@ -125,22 +126,62 @@ export default function DeckFlashcards() {
         style={[styles.card, animatedStyle]}
         {...panResponder.panHandlers}
       >
-        {renderCardContent(card)}
+        <ScrollView contentContainerStyle={styles.cardContentContainer}>
+          {renderCardContent(card)}
+        </ScrollView>
       </Animated.View>
 
-      {readingMode && (
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity onPress={() => {
+          Animated.timing(position, {
+            toValue: { x: -SCREEN_WIDTH, y: 0 },
+            duration: 250,
+            useNativeDriver: true,
+          }).start(() => {
+            resetCard();
+            setCurrentIndex(prev => prev + 1);
+          });
+        }} style={styles.swipeButton}>
+          <Ionicons name="close-circle" size={48} color="#ff4d4d" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => {
+          Animated.timing(position, {
+            toValue: { x: SCREEN_WIDTH, y: 0 },
+            duration: 250,
+            useNativeDriver: true,
+          }).start(() => {
+            resetCard();
+            setCurrentIndex(prev => prev + 1);
+          });
+        }} style={styles.swipeButton}>
+          <Ionicons name="checkmark-circle" size={48} color="#4caf50" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Reading Mode Modal */}
+      <Modal
+        visible={readingMode}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setReadingMode(false)}
+      >
         <View style={styles.readingModeContainer}>
           <TouchableOpacity style={styles.closeButton} onPress={() => setReadingMode(false)}>
             <Text style={styles.closeButtonText}>X</Text>
           </TouchableOpacity>
           <ScrollView contentContainerStyle={styles.readingContentContainer}>
-            <Text style={styles.articleTitle}>{card.companyName} Full Article</Text>
+            {/* Summary using card details */}
+            <Text style={styles.articleTitle}>{card.companyName} Summary</Text>
             <Text style={styles.articleContent}>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit...
+              {card.companyName} ({card.subTitle}) is currently trading at {card.price}. The price change is {card.priceChange}.{"\n\n"}
+              {card.stats ? "Key Metrics: " + card.stats.map(stat => `${stat.label}: ${stat.value}`).join(", ") + "." : ""}
+              {card.additionalStats && card.additionalStats.length > 0
+                ? "\n\nAdditional Details: " + card.additionalStats.join("; ") + "."
+                : ""}
             </Text>
           </ScrollView>
         </View>
-      )}
+      </Modal>
     </View>
   );
 }
@@ -187,12 +228,16 @@ function renderCardContent(card: DeckCard) {
           </TouchableOpacity>
         ))}
       </View>
-      {card.contentCards?.map((content, index) => (
-        <View key={index} style={styles.contentCard}>
-          <Text style={styles.contentTitle}>{content.title}</Text>
-          <Text style={styles.contentText}>{content.text}</Text>
+      {card.contentCards && (
+        <View>
+          {card.contentCards.map((content, index) => (
+            <View key={index} style={styles.contentCard}>
+              <Text style={styles.contentTitle}>{content.title}</Text>
+              <Text style={styles.contentText}>{content.text}</Text>
+            </View>
+          ))}
         </View>
-      ))}
+      )}
       <Text style={styles.swipeHint}>Swipe up for full article reading mode</Text>
     </ScrollView>
   );
@@ -215,7 +260,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '90%',
-    maxHeight: '80%',
+    maxHeight: '85%',
     backgroundColor: '#fff',
     borderRadius: 10,
     overflow: 'hidden',
@@ -268,9 +313,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   additionalStats: {
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 12,
     marginBottom: 16,
   },
   additionalStatText: {
@@ -300,19 +342,18 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   contentCard: {
-    backgroundColor: '#f8f8f8',
-    padding: 16,
+    backgroundColor: '#f7f7f7',
     borderRadius: 8,
+    padding: 12,
     marginBottom: 16,
   },
   contentTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   contentText: {
     fontSize: 14,
-    lineHeight: 20,
     color: '#444',
   },
   swipeHint: {
@@ -320,6 +361,13 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 12,
     marginTop: 10,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    marginTop: 20,
+  },
+  swipeButton: {
+    marginHorizontal: 20,
   },
   readingModeContainer: {
     position: 'absolute',
@@ -353,3 +401,4 @@ const styles = StyleSheet.create({
     color: '#444',
   },
 });
+
